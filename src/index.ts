@@ -1593,10 +1593,18 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 		permissionMode: "bypassPermissions",
 		includePartialMessages: true,
 		settings: { ...claudeCodeSettings(providerSettings), claudeMdExcludes: CLAUDE_MD_EXCLUDES },
-		systemPrompt: {
-			type: "preset", preset: "claude_code",
-			append: systemPromptAppend ? systemPromptAppend : undefined,
-		},
+		// replaceSystemPrompt: the projected context (AGENTS.md, skills,
+		// .pi/SYSTEM.md) becomes the whole prompt — Claude Code's preset is
+		// dropped. Falls back to the preset when there is nothing to forward:
+		// the child depends on the preset's tool and permission guidance.
+		...(providerSettings.replaceSystemPrompt && systemPromptAppend
+			? { systemPrompt: systemPromptAppend }
+			: {
+				systemPrompt: {
+					type: "preset", preset: "claude_code",
+					append: systemPromptAppend ? systemPromptAppend : undefined,
+				},
+			}),
 		extraArgs,
 		...(effort ? { effort } : {}),
 		...(mcpServers ? { mcpServers } : {}),
@@ -1820,7 +1828,10 @@ async function promptAndWait(
 			// Preset unconditionally: omitting it leaves the child on the SDK's bare default,
 			// without the tool and permission guidance the bridge relies on everywhere else.
 			// Whether pi has skills to append is unrelated to whether the child needs that.
-			systemPrompt: { type: "preset", preset: "claude_code", append: skillsBlock },
+			// replaceSystemPrompt opts out of that: the forwarded block is the whole prompt.
+			...(providerSettings.replaceSystemPrompt && skillsBlock
+				? { systemPrompt: skillsBlock }
+				: { systemPrompt: { type: "preset", preset: "claude_code", append: skillsBlock } }),
 			settingSources: ["user", "project"] as SettingSource[],
 			extraArgs,
 			...(resumeSessionId ? { resume: resumeSessionId } : {}),

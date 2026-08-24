@@ -24,6 +24,14 @@ export interface Config {
 	/** Low-level Claude Agent SDK plumbing. Most users won't need these. */
 	provider?: {
 		strictMcpConfig?: boolean;
+		/**
+		 * Send the bridge's projected context (AGENTS.md files, skills block,
+		 * .pi/SYSTEM.md) as the ENTIRE system prompt instead of appending it to
+		 * Claude Code's claude_code preset. Falls back to the preset whenever
+		 * there is nothing to forward, since the child relies on the preset's
+		 * tool and permission guidance.
+		 */
+		replaceSystemPrompt?: boolean;
 		autoMemoryEnabled?: boolean;
 		pathToClaudeCodeExecutable?: string;
 		// Subscription plan tier. Setting to "max" enables Opus 4.6 at 1M context
