@@ -9,12 +9,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSession, deleteSession, openSession } from "cc-session-io";
 
-const { __test } = await import("../src/index.js");
+const { getSharedSession, setSharedSession, syncSharedSession } = await import("../src/session.js");
+const { setUI } = await import("../src/ui.js");
 
 describe("syncSharedSession", () => {
 	afterEach(() => {
-		__test.resetSharedSession();
-		__test.setPiUI(null);
+		setSharedSession(null);
+		setUI(null);
 	});
 
 	// The branch this exercises is the guard that stops a reentrant subagent from
@@ -31,9 +32,9 @@ describe("syncSharedSession", () => {
 				cursor: 42,
 				cwd,
 			};
-			__test.setSharedSession(mainSession);
+			setSharedSession(mainSession);
 
-			const result = __test.syncSharedSession([
+			const result = syncSharedSession([
 				{
 					role: "user",
 					content: "Summarize this conversation.",
@@ -51,7 +52,7 @@ describe("syncSharedSession", () => {
 				true,
 				"the fresh session must not replace the parent's when it completes",
 			);
-			assert.deepEqual(__test.getSharedSession(), mainSession);
+			assert.deepEqual(getSharedSession(), mainSession);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
@@ -86,9 +87,9 @@ describe("syncSharedSession", () => {
 			);
 			seeded.save();
 
-			__test.setSharedSession({ sessionId, cursor: 0, cwd });
-			__test.setPiUI({ notify: (message) => notices.push(message) });
-			__test.syncSharedSession([
+			setSharedSession({ sessionId, cursor: 0, cwd });
+			setUI({ notify: (message) => notices.push(message) });
+			syncSharedSession([
 				{ role: "user", content: prompt, timestamp: Date.now() },
 				{ role: "assistant", content: [{ type: "text", text: "Noted." }], timestamp: Date.now() },
 				{ role: "user", content: "Now what did it say?", timestamp: Date.now() },

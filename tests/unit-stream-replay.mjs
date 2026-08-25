@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { QueryContext } from "../src/query-state.js";
 
-const { __test } = await import("../src/index.js");
+const { consumeQuery } = await import("../src/stream.js");
 
 // `cost` matters: a recorded stream carries real usage, so consumeQuery reaches
 // pi-ai's cost calculation, which the hand-built streams never exercise. Zeros are
@@ -43,7 +43,7 @@ async function replay(name, { toolNames = ["read"] } = {}) {
 
 	const messages = fixture(name);
 	async function* stream() { for (const m of messages) yield m; }
-	const { capturedSessionId } = await __test.consumeQuery(stream(), customToolNameToPi, model, () => false, c);
+	const { capturedSessionId } = await consumeQuery(stream(), customToolNameToPi, model, () => false, c);
 	return { events, ctx: c, messages, capturedSessionId };
 }
 
@@ -119,7 +119,7 @@ describe("replaying a hosted web-search turn", () => {
 			{ type: "stream_event", event: { type: "message_stop" }, session_id: "00000000-0000-4000-8000-000000000001" },
 		];
 		async function* stream() { for (const m of frames) yield m; }
-		await __test.consumeQuery(stream(), new Map(), model, () => false, c);
+		await consumeQuery(stream(), new Map(), model, () => false, c);
 
 		const text = c.turnOutput.content.filter((b) => b.type === "text").map((b) => b.text).join("");
 		assert.match(text, /\[web search: web_fetch\]/, "a non-web_search hosted tool names itself in the marker");

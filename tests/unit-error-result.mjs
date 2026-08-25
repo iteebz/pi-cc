@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { QueryContext } from "../src/query-state.js";
 
-const { __test } = await import("../src/index.js");
+const { consumeQuery, finalizeCurrentStream, resultErrorText } = await import("../src/stream.js");
 
 const fakeModel = { api: "anthropic-messages", provider: "anthropic", id: "test-model" };
 
@@ -26,7 +26,7 @@ function makeCtx() {
 
 async function consume(c, messages) {
 	async function* gen() { for (const m of messages) yield m; }
-	await __test.consumeQuery(gen(), new Map(), fakeModel, () => false, c);
+	await consumeQuery(gen(), new Map(), fakeModel, () => false, c);
 }
 
 const errorResult = {
@@ -39,23 +39,23 @@ const errorResult = {
 // accept an errored result as a valid summary, writing "Prompt is too long" into history.
 describe("resultErrorText", () => {
 	it("treats is_error on a success-shaped result as a failure", () => {
-		assert.strictEqual(__test.resultErrorText(errorResult), errorResult.result);
+		assert.strictEqual(resultErrorText(errorResult), errorResult.result);
 	});
 
 	it("returns undefined for a genuine success", () => {
-		assert.strictEqual(__test.resultErrorText({ type: "result", subtype: "success", is_error: false, result: "a summary" }), undefined);
+		assert.strictEqual(resultErrorText({ type: "result", subtype: "success", is_error: false, result: "a summary" }), undefined);
 	});
 
 	it("joins errors[] for the dedicated error subtypes", () => {
-		assert.strictEqual(__test.resultErrorText({ type: "result", subtype: "error_during_execution", errors: ["boom", "bang"] }), "boom\nbang");
+		assert.strictEqual(resultErrorText({ type: "result", subtype: "error_during_execution", errors: ["boom", "bang"] }), "boom\nbang");
 	});
 
 	it("never returns an empty message for a failure", () => {
-		assert.ok(__test.resultErrorText({ type: "result", subtype: "success", is_error: true, result: "" }));
-		assert.ok(__test.resultErrorText({ type: "result", subtype: "error_max_budget_usd" }));
+		assert.ok(resultErrorText({ type: "result", subtype: "success", is_error: true, result: "" }));
+		assert.ok(resultErrorText({ type: "result", subtype: "error_max_budget_usd" }));
 		// errors[] is typed string[], with no promise of being non-empty; joining an
 		// empty one marks the turn errored with nothing to show the user.
-		assert.ok(__test.resultErrorText({ type: "result", subtype: "error_during_execution", errors: [] }));
+		assert.ok(resultErrorText({ type: "result", subtype: "error_during_execution", errors: [] }));
 	});
 });
 
@@ -68,7 +68,7 @@ describe("error results", () => {
 		assert.strictEqual(c.turnOutput.errorMessage, errorResult.result);
 
 		const stream = c.currentPiStream;
-		__test.finalizeCurrentStream(c, c.turnOutput.stopReason);
+		finalizeCurrentStream(c, c.turnOutput.stopReason);
 		const terminal = stream.events.at(-2);
 		assert.strictEqual(terminal.type, "error");
 		assert.strictEqual(terminal.reason, "error");
@@ -95,7 +95,7 @@ describe("error results", () => {
 		assert.deepStrictEqual(c.turnOutput.content, [{ type: "text", text: "done" }]);
 
 		const stream = c.currentPiStream;
-		__test.finalizeCurrentStream(c, c.turnOutput.stopReason);
+		finalizeCurrentStream(c, c.turnOutput.stopReason);
 		assert.strictEqual(stream.events.at(-2).type, "done");
 	});
 

@@ -13,7 +13,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { QueryContext } from "../src/query-state.js";
 
-const { __test } = await import("../src/index.js");
+const { consumeQuery } = await import("../src/stream.js");
 
 const fakeModel = { api: "anthropic-messages", provider: "anthropic", id: "test-model" };
 const toolMap = new Map([["mcp__custom-tools__bash", "bash"]]);
@@ -32,7 +32,7 @@ function makeCtx() {
 
 async function consume(c, messages) {
 	async function* gen() { for (const m of messages) yield m; }
-	await __test.consumeQuery(gen(), toolMap, fakeModel, () => false, c);
+	await consumeQuery(gen(), toolMap, fakeModel, () => false, c);
 }
 
 const streamEvent = (event) => ({ type: "stream_event", event });

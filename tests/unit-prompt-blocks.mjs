@@ -4,11 +4,12 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const { __test } = await import("../src/index.js");
+const { extractUserPromptBlocks } = await import("../src/turn.js");
+const { setSharedSession, syncSharedSession } = await import("../src/session.js");
 
 describe("extractUserPromptBlocks", () => {
 	it("keeps images and text from the trailing run of user messages", () => {
-		const blocks = __test.extractUserPromptBlocks([
+		const blocks = extractUserPromptBlocks([
 			{ role: "user", content: [
 				{ type: "text", text: "describe this" },
 				{ type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
@@ -24,7 +25,7 @@ describe("extractUserPromptBlocks", () => {
 	});
 
 	it("does not reach past the current user turn", () => {
-		const blocks = __test.extractUserPromptBlocks([
+		const blocks = extractUserPromptBlocks([
 			{ role: "user", content: [{ type: "image", mimeType: "image/png", data: "b2xk" }] },
 			{ role: "assistant", content: [{ type: "text", text: "done" }] },
 			{ role: "user", content: "next turn" },
@@ -36,7 +37,7 @@ describe("extractUserPromptBlocks", () => {
 	// Data-less image blocks occur in the wild; the skip guard has to run before
 	// the debug line that reads .length off the missing field.
 	it("skips malformed image blocks instead of throwing", () => {
-		const blocks = __test.extractUserPromptBlocks([
+		const blocks = extractUserPromptBlocks([
 			{ role: "user", content: [
 				{ type: "text", text: "look" },
 				{ type: "image", mimeType: "image/png" },
@@ -54,14 +55,14 @@ describe("extractUserPromptBlocks", () => {
 	// name the shape, since the culprit is usually another extension.
 	it("throws a legible error on off-type content", () => {
 		assert.throws(
-			() => __test.extractUserPromptBlocks([{ role: "user", content: undefined }]),
+			() => extractUserPromptBlocks([{ role: "user", content: undefined }]),
 			/content must be a string or block array, got undefined/,
 		);
 	});
 });
 
 describe("history/prompt split", () => {
-	afterEach(() => __test.resetSharedSession());
+	afterEach(() => setSharedSession(null));
 
 	// The turn boundary is computed once and both halves derive from it, so a
 	// message can never be replayed as history *and* resent as the prompt.
@@ -83,13 +84,13 @@ describe("history/prompt split", () => {
 				{ role: "user", content: "(attachment preview: [#image 1])", timestamp: 4 },
 			];
 
-			const { sessionId } = __test.syncSharedSession(messages, cwd);
+			const { sessionId } = syncSharedSession(messages, cwd);
 			// readdir rather than fs.globSync — the latter is Node 22+, and engines allows 20.
 			const projectsDir = join(claudeDir, "projects");
 			const [projectDir] = readdirSync(projectsDir);
 			assert.ok(projectDir, "syncSharedSession should have written a session file");
 			const history = readFileSync(join(projectsDir, projectDir, `${sessionId}.jsonl`), "utf8");
-			const prompt = JSON.stringify(__test.extractUserPromptBlocks(messages));
+			const prompt = JSON.stringify(extractUserPromptBlocks(messages));
 
 			assert.match(prompt, /describe this/, "the image-bearing message belongs in the prompt");
 			assert.doesNotMatch(history, /describe this/, "and must not also be replayed as history");

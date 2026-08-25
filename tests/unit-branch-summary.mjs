@@ -16,7 +16,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-const { default: activate, __test } = await import("../src/index.js");
+const { default: activate } = await import("../src/index.js");
+const { branchSummaryOutcome } = await import("../src/summary.js");
 
 function activateWithMockPi() {
 	const handlers = new Map();
@@ -54,7 +55,7 @@ describe("branch summarization takeover", () => {
 // driven without a Claude Code subprocess. Driving pi's summarizer would be testing pi.
 describe("branch summary outcome", () => {
 	it("hands pi the summary and the file lists it records natively", () => {
-		const outcome = __test.branchSummaryOutcome({
+		const outcome = branchSummaryOutcome({
 			summary: "the branch did X",
 			usage: { input: 10, output: 2 },
 			readFiles: ["/a.ts"],
@@ -67,15 +68,15 @@ describe("branch summary outcome", () => {
 	});
 
 	it("still yields a well-formed summary when the file lists are absent", () => {
-		const outcome = __test.branchSummaryOutcome({ summary: "terse" });
+		const outcome = branchSummaryOutcome({ summary: "terse" });
 		assert.deepEqual(outcome.summary.details, { readFiles: [], modifiedFiles: [] });
 	});
 
 	it("cancels the navigation on abort rather than moving without a summary", () => {
-		assert.deepEqual(__test.branchSummaryOutcome({ aborted: true }), { cancel: true });
+		assert.deepEqual(branchSummaryOutcome({ aborted: true }), { cancel: true });
 	});
 
 	it("throws on a summary error, which the handler turns into a cancel", () => {
-		assert.throws(() => __test.branchSummaryOutcome({ error: "model refused" }), /model refused/);
+		assert.throws(() => branchSummaryOutcome({ error: "model refused" }), /model refused/);
 	});
 });

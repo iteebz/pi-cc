@@ -19,7 +19,7 @@ import { QueryContext } from "../src/query-state.js";
 import { extractAllToolResults } from "../src/extract-tool-results.js";
 import { makePromptStream } from "../src/prompt-stream.js";
 
-const { __test } = await import("../src/index.js");
+const { buildMcpServers, deliverToolResults, drainForAbort } = await import("../src/tools.js");
 
 // Mirrors the SDK's connectSdkMcpServer: hand the instance a transport, push
 // requests into transport.onmessage, read replies out of transport.send.
@@ -64,13 +64,13 @@ const TOOLS = ["alpha", "beta", "gamma"].map((name) => ({
 async function startQuery(turnToolCallIds) {
 	const c = new QueryContext();
 	c.turnToolCallIds = [...turnToolCallIds];
-	const servers = __test.buildMcpServers(TOOLS, c);
+	const servers = buildMcpServers(TOOLS, c);
 	return { c, callTool: await connectClient(Object.values(servers)[0]) };
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const result = (toolCallId, text, isError) => ({ toolCallId, content: [{ type: "text", text }], isError });
-const deliver = (c, ...results) => __test.deliverToolResults(c, results, null, 4);
+const deliver = (c, ...results) => deliverToolResults(c, results, null, 4);
 const replyText = (response) => response.result.content[0].text;
 
 describe("tool result queue", () => {
@@ -193,11 +193,11 @@ describe("abandoning a query", () => {
 		// Real stream, no consumer: the push parks exactly as it does when the CLI
 		// stops reading stdin.
 		c.promptStream = makePromptStream();
-		const delivery = __test.deliverToolResults(c, [result("toolu_1", "r1")], [{ type: "text", text: "stop" }], 4);
+		const delivery = deliverToolResults(c, [result("toolu_1", "r1")], [{ type: "text", text: "stop" }], 4);
 		await tick();
 		assert.equal(c.pendingToolCalls.size, 1, "delivery must still be parked on the ack");
 
-		__test.drainForAbort(c, c.promptStream);
+		drainForAbort(c, c.promptStream);
 
 		await delivery; // resolves rather than throwing: the steer is lost, not the turn
 		assert.equal(replyText(await call), "Operation aborted");
@@ -271,7 +271,7 @@ describe("delivering an extracted turn to its handlers", () => {
 			{ role: "user", content: "steer" },
 			{ role: "toolResult", toolCallId: "toolu_2", content: "ran the command" },
 		]);
-		await __test.deliverToolResults(c, results, null, 5);
+		await deliverToolResults(c, results, null, 5);
 
 		assert.equal(replyText(await alpha), "read the file");
 		assert.equal(replyText(await beta), "ran the command");

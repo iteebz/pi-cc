@@ -22,7 +22,7 @@ import {
 } from "./session.js";
 import {
 	claimCurrentPiStream, consumeQuery, finalizeCurrentStream, markStreamComplete,
-	newAssistantMessageEventStream, resultErrorText,
+	newAssistantMessageEventStream,
 } from "./stream.js";
 import { branchSummaryOutcome, isolatedStreamFn, reinjectPriorCompactionFileOps } from "./summary.js";
 import { buildMcpServers, deliverToolResults, drainForAbort, resolveMcpTools } from "./tools.js";
@@ -424,20 +424,3 @@ export default function (pi: ExtensionAPI) {
 	}
 }
 
-// @internal — the seam unit tests drive. Each name's home is its module.
-export const __test = {
-	resetSharedSession: () => setSharedSession(null),
-	setSharedSession,
-	getSharedSession,
-	setPiUI: setUI,
-	syncSharedSession,
-	extractUserPromptBlocks,
-	consumeQuery,
-	finalizeCurrentStream,
-	resultErrorText,
-	deliverToolResults,
-	drainForAbort,
-	CC_CHILD_ENV,
-	buildMcpServers,
-	branchSummaryOutcome,
-};

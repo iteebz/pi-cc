@@ -7,11 +7,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-const { __test } = await import("../src/index.js");
+const { CC_CHILD_ENV } = await import("../src/config.js");
 
 describe("Claude Code child environment", () => {
 	it("disables auto-compaction and claude.ai MCP servers", () => {
-		assert.deepEqual(__test.CC_CHILD_ENV, {
+		assert.deepEqual(CC_CHILD_ENV, {
 			ENABLE_CLAUDEAI_MCP_SERVERS: "0",
 			DISABLE_AUTO_COMPACT: "1",
 		});
