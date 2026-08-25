@@ -47,3 +47,39 @@ Five wrong conclusions across two sessions came from skipping the above.
 Unit tests: `npm run test:unit`. Full suite (`npm test`) runs integration +
 smoke tests and typically needs to run outside a sandbox because it accesses
 local pi/Claude settings and auth state.
+
+## Architecture map
+
+`src/index.ts` is the pi extension entry: it registers the provider (models,
+streaming fn), hooks pi session lifecycle events, and owns the shared-session
+sync. The module seams:
+
+- `convert.ts` — pi messages → Anthropic API shape; the single place that
+  decides what a rebuilt transcript calls each tool.
+- `query-state.ts` — per-query state (`QueryContext`) and pending tool-call
+  routing between Claude Code's stream and pi's TUI.
+- `prompt-stream.ts` — feeding prompts/steers into the running CC query.
+- `prompt-capture.ts` — projects pi's assembled system prompt (context files,
+  skills) into what CC's child receives; keeps `--no-context-files` honest.
+- `skills.ts` — skills block rendering + MCP read-tool rewrite.
+- `mcp-server.ts` — serves pi's tools to CC over MCP (`mcp__custom-tools__*`).
+- `session-verify.ts`, `extract-tool-results.ts`, `attachments.ts` — session
+  write verification, tool-result extraction, image carrying.
+
+Session persistence goes through `cc-session-io`: we write the same JSONL
+Claude Code reads, so resume is a real CC resume, not a replayed prompt. The
+cursor logic in `syncSharedSession` is load-bearing — read its doc comment
+before touching rebuild/reentrancy branches.
+
+## Invariants worth knowing before refactoring
+
+- The provider query always starts CC with `tools: []`; every tool CC can call
+  arrives over MCP with an `mcp__custom-tools__` prefix. Anything else in a
+  tool_use block is a hallucinated builtin and must not reach pi.
+- The registered model `contextWindow` must match what the bridge actually
+  serves (200K everywhere — see `src/models.ts`); mismatch desynchronizes pi's
+  auto-compaction.
+- Prefix stability across turns is what keeps Anthropic prompt caching alive:
+  system prompt, tools, and message prefix must not change retroactively.
+  `tests/int-cache.sh` fails loudly when you break this — treat it as the
+  canary for any change that touches prompt assembly or session sync.

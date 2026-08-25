@@ -98,7 +98,7 @@ describe("rebuilds extend the transcript instead of rewriting it", () => {
 // again — so a second pass has to be a no-op or every rebuild would differ from
 // the transcript the debug log reports.
 it("repairToolPairing is idempotent", () => {
-	const once = repairToolPairing(convertPiMessages(corpus).anthropicMessages);
+	const once = repairToolPairing(convertPiMessages(corpus, new Map()).anthropicMessages);
 	assert.deepEqual(repairToolPairing(once), once);
 });
 
@@ -106,7 +106,7 @@ it("repairToolPairing is idempotent", () => {
 // consistently, so pin the content too: the pre-ff60313c conversion passed both
 // invariants above while dropping every parallel result past the first.
 it("a real session round-trips with every tool result intact", () => {
-	const blocks = repairToolPairing(convertPiMessages(corpus).anthropicMessages)
+	const blocks = repairToolPairing(convertPiMessages(corpus, new Map()).anthropicMessages)
 		.flatMap((m) => (Array.isArray(m.content) ? m.content : []))
 		.filter((b) => b.type === "tool_result");
 	const expected = corpus.filter((m) => m.role === "toolResult");

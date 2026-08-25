@@ -30,7 +30,7 @@ export function loadPiMessages(file) {
  *  Session.importMessages — reduced to the record content the prompt cache is
  *  keyed on. */
 export function transcript(piMessages) {
-	const repaired = repairToolPairing(convertPiMessages(piMessages).anthropicMessages);
+	const repaired = repairToolPairing(convertPiMessages(piMessages, new Map()).anthropicMessages);
 	const session = createSession({ projectPath: process.cwd() });
 	if (repaired.length) session.importMessages(repaired);
 	return session.records.map((r) => JSON.stringify({

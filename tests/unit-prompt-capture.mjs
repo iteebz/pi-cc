@@ -24,10 +24,10 @@ function capture(overrides = {}) {
 	return { contextFiles: [], skills: [], ...overrides };
 }
 
-function project(captures, key, skillReadTool = "mcp") {
+function project(captures, key) {
 	const found = captures.resolve(key);
 	assert.ok(found, `missing capture for ${key.slice(0, 30)}`);
-	return projectPromptCapture(found, { skillReadTool });
+	return projectPromptCapture(found);
 }
 
 function occurrences(text, needle) {
@@ -57,7 +57,7 @@ describe("PromptCaptures", () => {
 		// wrapped in text we never saw.
 		const wrapped = `PREFIX FROM ANOTHER EXTENSION\n\n${PARENT_KEY}\n\nSUFFIX`;
 		const derived = captures.resolveOrDerive(wrapped);
-		const projected = projectPromptCapture(derived, { skillReadTool: "mcp" });
+		const projected = projectPromptCapture(derived);
 
 		assert.match(projected, /parent rules/, "the wrapped prompt's own instructions must survive");
 		assert.match(projected, /browser/, "and so must its skills");
@@ -215,7 +215,7 @@ describe("PromptCaptures", () => {
 
 		const childCapture = captures.resolve(CHILD_KEY);
 		assert.deepEqual(collectPromptSkills(childCapture).map(({ name }) => name), ["browser", "review"]);
-		const result = projectPromptCapture(childCapture, { skillReadTool: "mcp" });
+		const result = projectPromptCapture(childCapture);
 		assert.equal(occurrences(result, "/skills/browser/SKILL.md"), 1);
 		assert.equal(occurrences(result, "/skills/review/SKILL.md"), 1);
 	});

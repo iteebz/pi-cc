@@ -7,7 +7,7 @@ import { repairToolPairing } from "cc-session-io";
 import { sanitizeToolId, convertPiMessages } from "../src/convert.js";
 
 /** Shorthand: convert pi messages and return just the anthropic messages. */
-function convert(messages, customToolNameToSdk) {
+function convert(messages, customToolNameToSdk = new Map()) {
 	return convertPiMessages(messages, customToolNameToSdk).anthropicMessages;
 }
 
@@ -237,7 +237,7 @@ describe("message structure", () => {
 		assert.equal(result[0].content, "read file.txt");
 		assert.equal(result[1].role, "assistant");
 		assert.equal(result[1].content[0].type, "tool_use");
-		assert.equal(result[1].content[0].name, "Read");
+		assert.equal(result[1].content[0].name, "mcp__custom-tools__read");
 		assert.equal(result[2].role, "user");
 		assert.equal(result[2].content[0].type, "tool_result");
 		assert.equal(result[3].role, "assistant");
@@ -264,18 +264,18 @@ describe("message structure", () => {
 	// With a tool map the query runs `tools: []`, so no name in the transcript may
 	// look like a Claude Code builtin — that is what makes the model call one it
 	// cannot call. A tool missing from the map is one pi ran and we no longer
-	// serve (AskClaude is excluded on purpose), not a builtin.
+	// serve, not a builtin.
 	it("tool name mapping: unserved pi tools keep the MCP namespace", () => {
 		const served = new Map([["read", "mcp__custom-tools__read"]]);
 		const msgs = [
 			{ role: "assistant", content: [
 				{ type: "toolCall", id: "a", name: "read", arguments: {} },
 				{ type: "toolCall", id: "b", name: "bash", arguments: {} },
-				{ type: "toolCall", id: "c", name: "AskClaude", arguments: {} },
+				{ type: "toolCall", id: "c", name: "SomeOtherExtensionTool", arguments: {} },
 			]},
 		];
 		assert.deepEqual(convert(msgs, served)[0].content.map((b) => b.name),
-			["mcp__custom-tools__read", "mcp__custom-tools__bash", "mcp__custom-tools__AskClaude"]);
+			["mcp__custom-tools__read", "mcp__custom-tools__bash", "mcp__custom-tools__SomeOtherExtensionTool"]);
 	});
 
 	it("tool name mapping: an SDK name in pi history is a double mapping, not a tool", () => {
@@ -286,7 +286,7 @@ describe("message structure", () => {
 		assert.throws(() => convert(msgs, new Map()), /already an SDK tool name/);
 	});
 
-	it("tool name mapping: pi names → SDK names", () => {
+	it("unmapped tool names fall through to the MCP prefix", () => {
 		const msgs = [
 			{ role: "assistant", content: [
 				{ type: "toolCall", id: "a", name: "read", arguments: {} },
@@ -294,8 +294,8 @@ describe("message structure", () => {
 			]},
 		];
 		const result = convert(msgs);
-		assert.equal(result[0].content[0].name, "Read");
-		assert.equal(result[0].content[1].name, "Bash");
+		assert.equal(result[0].content[0].name, "mcp__custom-tools__read");
+		assert.equal(result[0].content[1].name, "mcp__custom-tools__bash");
 	});
 
 	it("toolResult with array content extracts text", () => {
@@ -488,7 +488,7 @@ describe("dropped-content accounting", () => {
 			{ role: "assistant", provider: "claude-bridge", content: [
 				{ type: "thinking", thinking: "mine", thinkingSignature: "sig" },
 			]},
-		]);
+		], new Map());
 		assert.equal(dropped.thinking, 1);
 		assert.deepEqual([...dropped.providers], ["openrouter"]);
 		assert.equal(dropped.abortedTurns, 1);
@@ -498,7 +498,7 @@ describe("dropped-content accounting", () => {
 		const { dropped } = convertPiMessages([
 			{ role: "user", content: [{ type: "text", text: "hi" }] },
 			{ role: "assistant", content: [{ type: "text", text: "hello" }] },
-		]);
+		], new Map());
 		assert.equal(dropped.thinking, 0);
 		assert.equal(dropped.abortedTurns, 0);
 		assert.equal(dropped.other.size, 0);

@@ -41,7 +41,7 @@ function piHistoryWithParallelCall() {
 
 function seedRebuiltSession(sid) {
 	const session = createSession({ sessionId: sid, projectPath: CWD, claudeDir: process.env.CLAUDE_CONFIG_DIR, model: MODEL });
-	const { anthropicMessages } = convertPiMessages(piHistoryWithParallelCall());
+	const { anthropicMessages } = convertPiMessages(piHistoryWithParallelCall(), new Map());
 	session.importMessages(repairToolPairing(anthropicMessages));
 	session.save();
 	return session;

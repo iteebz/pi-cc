@@ -38,13 +38,11 @@ describe("loadConfig", () => {
 			mkdirSync(configDir, { recursive: true });
 			writeFileSync(join(configDir, "claude-bridge.json"), JSON.stringify({
 				provider: { plan: "max" },
-				askClaude: { enabled: false },
 			}));
 
 			assert.deepEqual(loadConfig(cwd), {
 				startupNoticeShown: undefined,
 				provider: { plan: "max" },
-				askClaude: { enabled: false },
 			});
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
@@ -60,17 +58,14 @@ describe("loadConfig", () => {
 			mkdirSync(projectDir, { recursive: true });
 			writeFileSync(join(globalDir, "claude-bridge.json"), JSON.stringify({
 				provider: { plan: "pro", strictMcpConfig: true },
-				askClaude: { enabled: true, defaultMode: "read" },
 			}));
 			writeFileSync(join(projectDir, "claude-bridge.json"), JSON.stringify({
 				provider: { plan: "max", autoMemoryEnabled: true },
-				askClaude: { enabled: false },
 			}));
 
 			assert.deepEqual(loadConfig(cwd), {
 				startupNoticeShown: undefined,
 				provider: { plan: "max", strictMcpConfig: true, autoMemoryEnabled: true },
-				askClaude: { enabled: false, defaultMode: "read" },
 			});
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
@@ -84,14 +79,12 @@ describe("loadConfig", () => {
 			mkdirSync(globalDir, { recursive: true });
 			const path = join(globalDir, "claude-bridge.json");
 			writeFileSync(path, JSON.stringify({
-				askClaude: { enabled: false },
 				provider: { strictMcpConfig: false },
 			}));
 
 			assert.equal(markStartupNoticeShown(), path);
 			const written = JSON.parse(readFileSync(path, "utf-8"));
 			assert.match(written.startupNoticeShown, /^\d{4}-\d{2}-\d{2}$/);
-			assert.deepEqual(written.askClaude, { enabled: false });
 			assert.deepEqual(written.provider, { strictMcpConfig: false });
 			assert.equal(loadConfig(cwd).startupNoticeShown, written.startupNoticeShown);
 		} finally {
@@ -103,7 +96,7 @@ describe("loadConfig", () => {
 		const globalDir = getAgentDir();
 		mkdirSync(globalDir, { recursive: true });
 		const path = join(globalDir, "claude-bridge.json");
-		const malformed = '{ "askClaude": { "enabled": true }, }';
+		const malformed = '{ "provider": { }, }';
 		writeFileSync(path, malformed);
 
 		markStartupNoticeShown();
@@ -134,7 +127,6 @@ describe("loadConfig", () => {
 			assert.deepEqual(loadConfig(cwd), {
 				startupNoticeShown: undefined,
 				provider: { plan: "max" },
-				askClaude: {},
 			});
 		} finally {
 			if (oldEnv === undefined) delete process.env.PI_CODING_AGENT_DIR;

@@ -1,6 +1,6 @@
 import type { Skill } from "@earendil-works/pi-coding-agent";
 import { formatProjectContext } from "./agents-md.js";
-import { renderSkillsBlock, type SkillReadTool } from "./skills.js";
+import { renderSkillsBlock } from "./skills.js";
 
 // What pi assembled for one agent, kept so the bridge can append only the
 // portable parts after Claude Code's own preset.
@@ -96,7 +96,7 @@ export class PromptCaptures {
 	}
 
 	/**
-	 * The capture to project for one query, for both the provider and AskClaude.
+	 * The capture to project for one query, for the provider query.
 	 *
 	 * An exact key is the normal case. A prompt that only *embeds* known prompts —
 	 * anything that wrapped what Pi assembled after we recorded it — resolves to a
@@ -187,11 +187,8 @@ export class PromptCaptures {
 	}
 }
 
-export function projectPromptCapture(
-	capture: PromptCapture,
-	options: { skillReadTool: SkillReadTool },
-): string | undefined {
-	return projectCapture(capture, options, new Set());
+export function projectPromptCapture(capture: PromptCapture): string | undefined {
+	return projectCapture(capture, new Set());
 }
 
 /** Skills visible through inherited prompts, ancestor first and once per file. */
@@ -221,7 +218,7 @@ export function collectPromptSkills(capture: PromptCapture): Skill[] {
 
 function projectCapture(
 	capture: PromptCapture,
-	options: { skillReadTool: SkillReadTool },
+
 	visiting: Set<PromptCapture>,
 ): string | undefined {
 	if (visiting.has(capture)) throw new Error("Cyclic prompt inheritance");
@@ -239,10 +236,10 @@ function projectCapture(
 			return true;
 		});
 
-		const custom = projectCustom(capture, options, visiting);
+		const custom = projectCustom(capture, visiting);
 		const parts = [
 			formatProjectContext(capture.contextFiles),
-			renderSkillsBlock(ownSkills, options.skillReadTool),
+			renderSkillsBlock(ownSkills),
 			custom,
 			capture.append,
 		].filter((part): part is string => Boolean(part));
@@ -254,7 +251,7 @@ function projectCapture(
 
 function projectCustom(
 	capture: PromptCapture,
-	options: { skillReadTool: SkillReadTool },
+
 	visiting: Set<PromptCapture>,
 ): string | undefined {
 	if (!capture.custom || capture.inherited.length === 0) return capture.custom;
@@ -263,7 +260,7 @@ function projectCustom(
 	let cursor = 0;
 	for (const edge of capture.inherited) {
 		result += capture.custom.slice(cursor, edge.start);
-		result += projectCapture(edge.parent, options, visiting) ?? "";
+		result += projectCapture(edge.parent, visiting) ?? "";
 		cursor = edge.end;
 	}
 	return result + capture.custom.slice(cursor);

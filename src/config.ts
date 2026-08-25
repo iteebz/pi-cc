@@ -11,35 +11,11 @@ import { dirname, join } from "path";
 export interface Config {
 	/** Date (YYYY-MM-DD) the one-time startup notice was shown. Written by the extension, not the user. */
 	startupNoticeShown?: string;
-	askClaude?: {
-		enabled?: boolean;
-		name?: string;
-		label?: string;
-		description?: string;
-		defaultMode?: "full" | "read" | "none";
-		defaultIsolated?: boolean;
-		allowFullMode?: boolean;
-		appendSkills?: boolean;
-	};
 	/** Low-level Claude Agent SDK plumbing. Most users won't need these. */
 	provider?: {
 		strictMcpConfig?: boolean;
-		/**
-		 * Send the bridge's projected context (AGENTS.md files, skills block,
-		 * .pi/SYSTEM.md) as the ENTIRE system prompt instead of appending it to
-		 * Claude Code's claude_code preset. Falls back to the preset whenever
-		 * there is nothing to forward, since the child relies on the preset's
-		 * tool and permission guidance.
-		 */
-		replaceSystemPrompt?: boolean;
 		autoMemoryEnabled?: boolean;
 		pathToClaudeCodeExecutable?: string;
-		// Subscription plan tier. Setting to "max" enables Opus 4.6 at 1M context
-		plan?: "pro" | "max";
-		// Set to true to opt into metered 1M context usage ("extra usage" in
-		// Anthropic billing). Enables Sonnet 4.6 [1m] on every plan and Opus 4.6
-		// [1m] on Pro.
-		longContextExtraUsage?: boolean;
 	};
 }
 
@@ -91,7 +67,6 @@ export function loadConfig(cwd: string): Config {
 	const project = tryParseJson(join(cwd, CONFIG_DIR_NAME, "claude-bridge.json"));
 	return {
 		startupNoticeShown: project.startupNoticeShown ?? global.startupNoticeShown,
-		askClaude: { ...global.askClaude, ...project.askClaude },
 		provider: { ...global.provider, ...project.provider },
 	};
 }

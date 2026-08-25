@@ -23,8 +23,11 @@ TMPFILE="$LOGDIR/cache-test-scratch.txt"
 rm -f "$TMPFILE" "$CLAUDE_BRIDGE_DEBUG_PATH"
 
 echo "Running 5-turn conversation (text + tool use)..."
+# Sonnet, not Haiku: with a replaced system prompt the forwarded prefix is
+# small (~1-2K tokens) and Haiku's 2048-token cache minimum means nothing is
+# ever cacheable — the test would fail on correct behavior. Sonnet's min is 1024.
 timeout 180 pi --no-session -ne -e "$DIR" \
-  --model "claude-bridge/claude-haiku-4-5" \
+  --model "claude-bridge/claude-sonnet-4-6" \
   --mode json \
   -p "The secret number is 42. Acknowledge briefly." \
      "Write the secret number to $TMPFILE. Just the number, nothing else." \
