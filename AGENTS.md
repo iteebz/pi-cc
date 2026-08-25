@@ -16,9 +16,12 @@ better than maintaining our own adapter. It works. It is ours.
 ## What it is
 
 A pi extension registering the Claude Code provider: Opus/Sonnet/Haiku as models
-in pi, with every tool call flowing through pi's TUI. Streaming, MCP tool
-bridging, session resume/persistence via `cc-session-io`, thinking support,
-skills forwarding, mid-turn steering.
+in pi. It is a minimal adapter, not a port of Claude Code — the job is to spend
+the Claude subscription inside pi's harness, nothing more. Every tool call flows
+through pi's TUI over MCP; the one deliberate exception is the hosted web tools
+(`webTools`, off by default), which run server-side because pi ships no native
+web search. Streaming, MCP tool bridging, session resume/persistence via
+`cc-session-io`, thinking support, skills forwarding, mid-turn steering.
 
 Install locally from this repo with `pi install /path/to/pi-claude-bridge`. The
 copy pi actually runs lives at `~/.pi/agent/git/github.com/iteebz/pi-claude-bridge`;
@@ -137,7 +140,8 @@ debug → ui → query-state → turn → session → tools → stream → summa
 ```
 
 with `convert · attachments · config · models · skills · mcp-server ·
-prompt-capture · prompt-stream` as leaves the above pull from.
+tool-names · extract-tool-results · session-verify · prompt-capture ·
+prompt-stream` as leaves the above pull from.
 
 - `convert.ts` — pi messages → Anthropic API shape; the single place that decides
   what a rebuilt transcript calls each tool.
@@ -157,6 +161,9 @@ prompt-capture · prompt-stream` as leaves the above pull from.
 - `prompt-stream.ts` — feeds prompts and mid-turn steers into the running query.
 - `skills.ts` / `mcp-server.ts` — skills-block rendering; serving pi's tools to CC
   over MCP (`mcp__custom-tools__*`).
+- `tool-names.ts` — the MCP server name and `mcp__custom-tools__` prefix, in a
+  dependency-free leaf so `convert.ts`/`skills.ts`/`tools.ts` read the string
+  without importing the MCP SDK server.
 
 Session persistence goes through `cc-session-io`: we write the same JSONL Claude
 Code reads, so resume is a real CC resume.
