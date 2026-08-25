@@ -81,6 +81,51 @@ describe("replaying a recorded single-tool turn", () => {
 	});
 });
 
+describe("replaying a hosted web-search turn", () => {
+	// web-search.jsonl is synthetic (see the file): a live web result carries real
+	// URLs and non-deterministic content that cannot be scrubbed on demand, so like
+	// unit-error-result its shape is hand-built to match what CC emits. What matters
+	// is the *shape* — server_tool_use, web_search_tool_result, then the answer text.
+	it("renders a [web search] marker and the answer, without a pi-side tool call", async () => {
+		const { ctx, events } = await replay("web-search", { toolNames: [] });
+
+		const text = blocks(ctx, "text").map((b) => b.text).join("");
+		assert.match(text, /\[web search\]/, "the hosted call must surface as a visible marker");
+		assert.match(text, /FOUNDED_2021/, "the model's post-search answer must still render");
+
+		// The cache seam: a hosted tool runs server-side and streams its result inside
+		// CC's own context. It must NOT look like a pi tool call — turnSawToolCall
+		// staying false is what keeps the stream from ending for a roundtrip, which
+		// would rebuild the session and flush the prompt cache.
+		assert.equal(ctx.turnSawToolCall, false, "hosted web tools must not register as pi tool calls");
+		assert.deepEqual(ctx.turnToolCallIds, [], "no pi-side tool ids for a hosted call");
+		assert.equal(blocks(ctx, "toolCall").length, 0, "server_tool_use must never reach pi as a toolCall");
+		assert.equal(ctx.turnOutput.stopReason, "stop", "the turn ends normally, not on a tool boundary");
+		assert.ok(events.some((e) => e.type === "text_delta" && String(e.delta).includes("[web search]")), "pi should stream the marker");
+	});
+
+	it("names the hosted tool in the marker when it is not web_search", async () => {
+		// Inline rather than a second fixture: only the content_block name differs, and
+		// the marker's `: name` suffix is the whole behavior under test.
+		const events = [];
+		const c = new QueryContext();
+		c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
+		c.resetTurnState(model);
+		const frames = [
+			{ type: "stream_event", event: { type: "message_start", message: { model: "claude-haiku-4-5", id: "m", type: "message", role: "assistant", content: [], usage: { input_tokens: 1, output_tokens: 1 } } }, session_id: "00000000-0000-4000-8000-000000000001" },
+			{ type: "stream_event", event: { type: "content_block_start", index: 0, content_block: { type: "server_tool_use", id: "srvtoolu_x", name: "web_fetch", input: {} } }, session_id: "00000000-0000-4000-8000-000000000001" },
+			{ type: "stream_event", event: { type: "content_block_stop", index: 0 }, session_id: "00000000-0000-4000-8000-000000000001" },
+			{ type: "stream_event", event: { type: "message_delta", delta: { stop_reason: "end_turn" }, usage: { input_tokens: 1, output_tokens: 1 } }, session_id: "00000000-0000-4000-8000-000000000001" },
+			{ type: "stream_event", event: { type: "message_stop" }, session_id: "00000000-0000-4000-8000-000000000001" },
+		];
+		async function* stream() { for (const m of frames) yield m; }
+		await __test.consumeQuery(stream(), new Map(), model, () => false, c);
+
+		const text = c.turnOutput.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+		assert.match(text, /\[web search: web_fetch\]/, "a non-web_search hosted tool names itself in the marker");
+	});
+});
+
 describe("replaying a recorded parallel-tool turn", () => {
 	it("keeps every parallel call, in emission order", async () => {
 		const { ctx } = await replay("parallel-tools");

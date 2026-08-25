@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
-import { claudeCodeSettings, loadConfig } from "../src/config.js";
+import { claudeCodeSettings, hostedTools, loadConfig } from "../src/config.js";
 
 function withTempHome(fn) {
 	const oldHome = process.env.HOME;
@@ -18,6 +18,21 @@ function withTempHome(fn) {
 		rmSync(home, { recursive: true, force: true });
 	}
 }
+
+describe("hostedTools", () => {
+	// The web-tools policy is the one deliberate exception to "every tool flows
+	// through pi's TUI". Off by default because the hosted pair bills subscription
+	// quota; on it becomes the query's `tools` list verbatim (see index.ts).
+	it("serves no hosted tools by default", () => {
+		assert.deepEqual(hostedTools(), []);
+		assert.deepEqual(hostedTools({}), []);
+		assert.deepEqual(hostedTools({ webTools: false }), []);
+	});
+
+	it("serves the hosted WebFetch/WebSearch pair when enabled", () => {
+		assert.deepEqual(hostedTools({ webTools: true }), ["WebFetch", "WebSearch"]);
+	});
+});
 
 describe("claudeCodeSettings", () => {
 	it("disables auto-memory by default", () => {

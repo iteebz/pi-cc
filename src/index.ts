@@ -9,7 +9,7 @@ import type { AssistantMessageEventStream, Context, Model, SimpleStreamOptions }
 import { getModels } from "@earendil-works/pi-ai/compat";
 import { compact, generateBranchSummary, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { query, type EffortLevel } from "@anthropic-ai/claude-agent-sdk";
-import { CC_CHILD_ENV, CLAUDE_MD_EXCLUDES, claudeCodeSettings, loadConfig, type Config } from "./config.js";
+import { CC_CHILD_ENV, CLAUDE_MD_EXCLUDES, claudeCodeSettings, hostedTools, loadConfig, type Config } from "./config.js";
 import { PROVIDER_ID } from "./convert.js";
 import { debug, diagDump, errorMessage, makeCliDebugOptions, moduleInstanceId } from "./debug.js";
 import { buildModels } from "./models.js";
@@ -188,10 +188,9 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 	const queryOptions: NonNullable<Parameters<typeof query>[0]["options"]> = {
 		cwd,
 		env: { ...process.env, ...CC_CHILD_ENV },
-		// webTools opt-in: hosted WebSearch/WebFetch run server-side and bill
-		// against the subscription quota, so they are off unless enabled. Every
-		// other tool CC can call arrives over MCP.
-		tools: providerSettings.webTools ? ["WebFetch", "WebSearch"] : [],
+		// hostedTools() owns the web-tools policy: the hosted pair when webTools is
+		// on, otherwise []. Every other tool CC can call arrives over MCP.
+		tools: hostedTools(providerSettings),
 		permissionMode: "bypassPermissions",
 		includePartialMessages: true,
 		settings: { ...claudeCodeSettings(providerSettings), claudeMdExcludes: CLAUDE_MD_EXCLUDES },

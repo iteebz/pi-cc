@@ -68,6 +68,16 @@ export function claudeCodeSettings(provider: Config["provider"] = {}): { autoMem
 	return { autoMemoryEnabled: provider.autoMemoryEnabled ?? false };
 }
 
+// The one place the hosted-web-tools policy lives. Claude Code's WebSearch/WebFetch
+// are the deliberate exception to "every tool flows through pi's TUI": pi ships no
+// native web search, and Anthropic's hosted pair is deep-research-optimized, so the
+// bridge is the sole web-capable provider in the harness. They run server-side and
+// bill against the subscription quota, hence opt-in. Off returns an empty list so
+// the provider query starts CC with no built-in tools at all.
+export function hostedTools(provider: Config["provider"] = {}): string[] {
+	return provider.webTools ? ["WebFetch", "WebSearch"] : [];
+}
+
 export function globalConfigPath(): string {
 	return join(getAgentDir(), "claude-bridge.json");
 }
