@@ -430,14 +430,14 @@ export async function consumeQuery(
     if (message.type === "rate_limit_event") {
       const info = (message as any).rate_limit_info;
       debug("consumeQuery: rate_limit_event", JSON.stringify(info).slice(0, 300));
+      // Only rejection is actionable — the turn was actually blocked. CC also
+      // emits an allowed_warning on every turn once a weekly window is active,
+      // with utilization numbers that do not track real usage; surfacing that
+      // produced a constant "1% used" wallpaper (and it fired twice without
+      // any usage change), so it is dropped.
       if (info?.status === "rejected") {
         const resetsAt = info.resetsAt ? new Date(info.resetsAt).toLocaleTimeString() : "unknown";
         notify(`Claude rate limited (${info.rateLimitType ?? "unknown"}) — resets at ${resetsAt}`, "warning");
-      } else if (info?.status === "allowed_warning") {
-        notify(
-          `Claude rate limit warning: ${Math.round(info.utilization ?? 0)}% used (${info.rateLimitType ?? ""})`,
-          "warning",
-        );
       }
       continue;
     }
