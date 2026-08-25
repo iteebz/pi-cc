@@ -9,13 +9,8 @@ better than maintaining our own adapter. It works. It is ours.
 - Upstream (elidickinson) is dead to us — no pulling, no PRs, no issue tracking.
 - Not published to npm. No changelog, no release process, no version bumps.
   `CHANGELOG.md` and `TODO.md` are historical record only; do not maintain them.
-- Change freely. The only constraint is that the distil builder harness keeps
-  working: verify with the tests before committing.
-
-## Restricted Actions
-
-Do **not** interact with the public without explicit permission — no PRs,
-no GitHub comments, no publishing.
+- Change freely and commit autonomously. Agents maintain this as needed for
+  integrated pi; verify with the tests before committing.
 
 ## Claims about how Claude Code behaves
 
