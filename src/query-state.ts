@@ -1,12 +1,13 @@
-// Query state: QueryContext class.
+// Query state: the QueryContext class and the registry of live ones.
 //
 // All per-query and per-turn mutable state lives here. Reentrant queries
-// (subagents) each get their own QueryContext instance, managed by index.ts.
-// Adding a new field = one property on the class.
+// (subagents) each get their own QueryContext instance; the registry is how a
+// delivered tool result finds the query that is waiting for it.
 //
-// Extracted from index.ts so tests can import without activating the extension.
+// Separate from index.ts so tests can import without activating the extension.
 
 import type { AssistantMessage, AssistantMessageEventStream, Model } from "@earendil-works/pi-ai";
+import { debug } from "./debug.js";
 import type { McpResult } from "./extract-tool-results.js";
 import type { PromptStream } from "./prompt-stream.js";
 
@@ -76,4 +77,43 @@ export function ctx(): QueryContext { return _ctx; }
 // Not called from production.
 export function resetCtx(): void {
 	_ctx = new QueryContext();
+}
+
+/** Every query currently in flight — the top-level one plus any reentrant
+ *  subagents. Membership is what makes a context reachable by a late tool
+ *  result, so leaving one in here after its query ended is a real leak. */
+export const activeQueryContexts = new Set<QueryContext>();
+
+/** The query that owns these tool results, or undefined if none does (e.g. the
+ *  user aborted the call the results belong to). */
+export function contextForToolResults(results: McpResult[]): QueryContext | undefined {
+	for (const result of results) {
+		const id = result.toolCallId;
+		if (!id) continue;
+		for (const queryCtx of activeQueryContexts) {
+			if (queryCtx.pendingToolCalls.has(id) || queryCtx.pendingResults.has(id) || queryCtx.turnToolCallIds.includes(id)) {
+				return queryCtx;
+			}
+		}
+	}
+	return undefined;
+}
+
+/** Whatever a settled session left behind, named in one greppable line.
+ *
+ *  Every one of these should be empty once the last turn ends, and each is a leak
+ *  that costs something real: a retained context routes a later orphaned tool result
+ *  into the delivery path and returns a stream nobody ends; a pending tool call is an
+ *  MCP handler Claude Code is still waiting on; a live prompt stream is an unresolved
+ *  ack. The activeQueryContexts leak was present on every single happy-path run and
+ *  no test noticed, because nothing asserted that anything ends clean — so assert it
+ *  where the real sessions are, and let diag/audit-warnings.mjs scan for it. */
+export function reportLeaks(label: string): void {
+	const pendingCalls = [...activeQueryContexts].reduce((n, c) => n + c.pendingToolCalls.size, 0);
+	const liveStreams = [...activeQueryContexts].filter((c) => c.promptStream !== null).length;
+	if (activeQueryContexts.size === 0 && pendingCalls === 0 && liveStreams === 0) return;
+	debug(
+		`WARNING: ${label} left state behind — contexts=${activeQueryContexts.size} `
+		+ `pendingToolCalls=${pendingCalls} promptStreams=${liveStreams}`,
+	);
 }

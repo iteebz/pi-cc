@@ -5,7 +5,7 @@
  */
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { MODEL_IDS_IN_ORDER, applyLongContext, buildModels, resolveClaudeCodeRuntimeModel } from "../src/models.js";
+import { CONTEXT_WINDOW, MODEL_IDS_IN_ORDER, buildModels } from "../src/models.js";
 
 // Simulated pi-ai registry entry — extra fields mimic the ones pi-ai exposes
 // that must not leak into the provider-registered MODELS array.
@@ -68,37 +68,13 @@ describe("MODELS projection", () => {
 	});
 });
 
-describe("Claude Code runtime model policy", () => {
-	// Policy: [1m] is never requested. Every known model serves the bare id at 200K.
-	const ALL_MODELS = MODEL_IDS_IN_ORDER;
-
-	it("never requests [1m]", () => {
-		for (const id of ALL_MODELS) {
-			assert.deepEqual(resolveClaudeCodeRuntimeModel(id), { cliModelId: id, contextWindow: 200000 });
-		}
-	});
-
-	it("unknown model falls back to bare id at 200K", () => {
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-future-9-9"), { cliModelId: "claude-future-9-9", contextWindow: 200000 });
-	});
-});
-
-describe("applyLongContext", () => {
-	const models = buildModels(MODEL_IDS_IN_ORDER.map(oneM));
-
-	it("registers every model at 200K with no 1M label", () => {
-		const registered = applyLongContext(models);
-		for (const m of registered) {
-			assert.equal(m.contextWindow, 200000, `${m.id} contextWindow`);
+describe("context window policy", () => {
+	// [1m] is never requested: every model registers at 200K, whatever pi-ai says,
+	// or pi's status bar and auto-compaction threshold misreport.
+	it("pins every model to 200K even when pi-ai offers 1M", () => {
+		for (const m of buildModels(MODEL_IDS_IN_ORDER.map(oneM))) {
+			assert.equal(m.contextWindow, CONTEXT_WINDOW, `${m.id} contextWindow`);
 			assert.ok(!m.name.includes("1M"), `${m.id} name: ${m.name}`);
 		}
-		// Does not mutate the source table used for id resolution.
-		assert.equal(find(models, "claude-opus-4-6").contextWindow, 1000000);
-	});
-
-	it("leaves models already at 200K untouched (same references)", () => {
-		const models = buildModels(MODEL_IDS_IN_ORDER.map(mockPiAiModel));
-		const registered = applyLongContext(models);
-		for (let i = 0; i < models.length; i++) assert.equal(registered[i], models[i]);
 	});
 });

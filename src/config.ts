@@ -5,12 +5,44 @@
 // returned) so the extension always starts.
 
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+
+// Applied to every Claude Code subprocess the bridge spawns — the provider
+// and the compact summary. One place, so a guard is added once rather than
+// twice, and so a missing one is visible.
+//
+// These are silent when missing: CC compacts or writes memory on its own,
+// nothing throws, and the damage shows up in the user's ~/.claude rather than
+// in a test.
+//
+// - ENABLE_CLAUDEAI_MCP_SERVERS=0: keep the user's claude.ai-connected MCP servers
+//   out of a pi session, which serves its own tools. Cloud MCP is a separate code
+//   path from filesystem MCP and is NOT blocked by --strict-mcp-config or
+//   settingSources; the native CC binary gates it on this env var alone.
+// - DISABLE_AUTO_COMPACT=1: pi owns compaction; CC compacting its own copy would
+//   diverge from pi's history, which is the source of truth for every rebuild,
+//   double-flush the prompt cache, and race CC's anti-thrashing guard (issue #8).
+//   Manual /compact inside CC still works (we never invoke it).
+export const CC_CHILD_ENV = {
+	ENABLE_CLAUDEAI_MCP_SERVERS: "0",
+	DISABLE_AUTO_COMPACT: "1",
+} as const;
+
+// Pi owns context files on the provider path, so Claude Code must not load its
+// own on top: otherwise a project CLAUDE.md arrives twice, and the user's
+// ~/.claude/CLAUDE.md — a persona written for a harness that is not the one
+// running — arrives at all, stamped "These instructions OVERRIDE any default
+// behavior" and outranking Pi's own AGENTS.md.
+//
+// Excludes rather than settingSources: the source gate that suppresses CLAUDE.md
+// is the same one that reads settings.json, where Bedrock/Vertex users keep
+// `env` and `apiKeyHelper`. Patterns are matched with picomatch against absolute
+// paths; "**/CLAUDE.md" covers the user, ancestor, project and .claude/ copies,
+// while rules need their own. Managed/policy memory is not excludable by design.
+export const CLAUDE_MD_EXCLUDES = ["**/CLAUDE.md", "**/.claude/rules/**"];
 
 export interface Config {
-	/** Date (YYYY-MM-DD) the one-time startup notice was shown. Written by the extension, not the user. */
-	startupNoticeShown?: string;
 	/** Low-level Claude Agent SDK plumbing. Most users won't need these. */
 	provider?: {
 		strictMcpConfig?: boolean;
@@ -40,36 +72,8 @@ export function globalConfigPath(): string {
 	return join(getAgentDir(), "claude-bridge.json");
 }
 
-/** Record today's date in the global config so the startup notice shows once, preserving every
- *  other field. Returns the config path for display either way.
- *
- *  Parses directly rather than through tryParseJson, which reports an unparseable file as `{}`:
- *  spreading that would replace a user's whole config with just this marker the first time they
- *  leave a trailing comma in it. Losing the notice is the cheaper failure, so the write is
- *  skipped and the notice simply shows again next session. */
-export function markStartupNoticeShown(): string {
-	const path = globalConfigPath();
-	let existing: Partial<Config> = {};
-	if (existsSync(path)) {
-		try {
-			existing = JSON.parse(readFileSync(path, "utf-8"));
-		} catch (e) {
-			console.error(`claude-bridge: leaving ${path} alone, it does not parse: ${e}`);
-			return path;
-		}
-	}
-	// en-CA renders YYYY-MM-DD in local time; toISOString() would report UTC.
-	const next = { ...existing, startupNoticeShown: new Date().toLocaleDateString("en-CA") };
-	mkdirSync(dirname(path), { recursive: true });
-	writeFileSync(path, `${JSON.stringify(next, null, 2)}\n`);
-	return path;
-}
-
 export function loadConfig(cwd: string): Config {
 	const global = tryParseJson(globalConfigPath());
 	const project = tryParseJson(join(cwd, CONFIG_DIR_NAME, "claude-bridge.json"));
-	return {
-		startupNoticeShown: project.startupNoticeShown ?? global.startupNoticeShown,
-		provider: { ...global.provider, ...project.provider },
-	};
+	return { provider: { ...global.provider, ...project.provider } };
 }

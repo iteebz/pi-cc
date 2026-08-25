@@ -2,7 +2,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { collectPromptSkills, projectPromptCapture, PromptCaptures } from "../src/prompt-capture.js";
+import { collectPromptSkills, formatProjectContext, projectPromptCapture, PromptCaptures } from "../src/prompt-capture.js";
 
 const PI_HARNESS = "You are an expert coding assistant operating inside pi. Pi documentation: pi packages (docs/packages.md).";
 const PARENT_KEY = `${PI_HARNESS}\n\n<project_context>raw parent context</project_context>\nCurrent working directory: /parent`;
@@ -239,5 +239,24 @@ describe("PromptCaptures", () => {
 		assert.equal(captures.resolve("b"), undefined);
 		assert.equal(captures.resolve("a").custom, "refreshed");
 		assert.ok(captures.resolve("c") && captures.resolve("d"));
+	});
+});
+
+describe("project context forwarding", () => {
+	it("preserves pi's file order and labels each with its path", () => {
+		const prompt = formatProjectContext([
+			{ path: "/agent/AGENTS.md", content: "global instructions" },
+			{ path: "/project/CLAUDE.md", content: "parent instructions" },
+			{ path: "/project/nested/AGENTS.md", content: "nested instructions" },
+		]);
+
+		assert.match(prompt, /^<project_context>\n\nProject-specific instructions and guidelines:/);
+		assert.ok(prompt.indexOf("global instructions") < prompt.indexOf("parent instructions"));
+		assert.ok(prompt.indexOf("parent instructions") < prompt.indexOf("nested instructions"));
+		assert.match(prompt, /<project_instructions path="\/project\/CLAUDE\.md">/);
+	});
+
+	it("returns undefined when pi finds no context files", () => {
+		assert.equal(formatProjectContext([]), undefined);
 	});
 });
