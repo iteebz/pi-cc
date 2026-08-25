@@ -2,16 +2,7 @@
   "name": "pi-claude-bridge",
   "version": "0.7.0",
   "private": true,
-  "description": "Pi extension that uses Claude Code (via Agent SDK) as a model provider and adds an AskClaude tool.",
-  "keywords": [
-    "pi-package",
-    "pi",
-    "extension",
-    "claude-code",
-    "claude-agent-sdk"
-  ],
-  "author": "Eli Dickinson",
-  "license": "MIT",
+  "description": "Pi extension: Claude Code (via Agent SDK) as a model provider for pi.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iteebz/pi-claude-bridge.git"
@@ -19,12 +10,6 @@
   "engines": {
     "node": ">=20"
   },
-  "files": [
-    "src",
-    "README.md",
-    "LICENSE",
-    "assets"
-  ],
   "scripts": {
     "test:unit": "node --import tsx --import ./tests/lib/setup.mjs --test tests/unit-*.mjs",
     "test": "set -a && [ -f .env.test ] && . .env.test; set +a && npm run test:unit && tests/int-smoke.sh && tests/int-multi-turn.sh && tests/int-cache.sh && node --import tsx --test tests/int-*.mjs",
