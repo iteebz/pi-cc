@@ -1,5 +1,5 @@
 import { formatSkillsForPrompt, type Skill } from "@earendil-works/pi-coding-agent";
-import { MCP_SERVER_NAME } from "./mcp-server.js";
+import { MCP_SERVER_NAME } from "./tool-names.js";
 
 export function renderSkillsBlock(skills: Skill[]): string | undefined {
 	const block = formatSkillsForPrompt(skills).trim();

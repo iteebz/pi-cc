@@ -3,7 +3,7 @@
 
 import type { Message as PiMessage } from "@earendil-works/pi-ai";
 import type { Message as SessionMessage } from "cc-session-io";
-import { MCP_TOOL_PREFIX } from "./mcp-server.js";
+import { MCP_TOOL_PREFIX } from "./tool-names.js";
 
 export const PROVIDER_ID = "claude-bridge";
 

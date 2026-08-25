@@ -26,13 +26,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import type { McpResult } from "./extract-tool-results.js";
 
-// The one MCP server the bridge runs, and the prefix every pi tool wears once
-// Claude Code can see it. Lives here because this is what serves them; the
-// prefix is how convert.ts names a tool in a rebuilt transcript and how
-// tools.ts recognizes a call as ours rather than a hallucinated builtin.
-export const MCP_SERVER_NAME = "custom-tools";
-export const MCP_TOOL_PREFIX = `mcp__${MCP_SERVER_NAME}__`;
-
 // Claude Code stamps every tools/call with the id of the tool_use block it came
 // from. That is the only reliable way to pair a call with its result: call order
 // is not guaranteed to match the order the tool_use blocks were emitted, so
