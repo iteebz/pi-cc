@@ -163,7 +163,7 @@ function streamClaudeAgentSdk(
   queryCtx.latestCursor = 0;
 
   const cwd = (options as { cwd?: string } | undefined)?.cwd ?? process.cwd();
-  const syncResult = syncSharedSession(context.messages, cwd, customToolNameToSdk, model.id);
+  const syncResult = syncSharedSession(context.messages, cwd, customToolNameToSdk, model.id, isReentrant);
   const resumeSessionId = syncResult.sessionId;
   const promptBlocks = extractUserPromptBlocks(context.messages);
   let promptText = extractUserPrompt(context.messages) ?? "";

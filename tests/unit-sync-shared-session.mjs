@@ -44,6 +44,9 @@ describe("syncSharedSession", () => {
           },
         ],
         cwd,
+        undefined,
+        undefined,
+        true,
       );
 
       assert.equal(
@@ -58,6 +61,42 @@ describe("syncSharedSession", () => {
       );
       assert.deepEqual(getSharedSession(), mainSession);
     } finally {
+      rmSync(cwd, { recursive: true, force: true });
+    }
+  });
+
+  // Issue #30. pi-context-prune shrinks pi's history below our cursor; that is
+  // NOT a subagent. The old shorter-context branch clean-started here, so Claude
+  // answered with no prior conversation at all. A non-reentrant shrink must
+  // REBUILD from the (pruned) priors under the same UUID instead.
+  it("rebuilds from pruned priors when a non-reentrant context shrinks below the cursor", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "sync-shared-session-"));
+    const sessionId = randomUUID();
+    try {
+      const seeded = createSession({ sessionId, projectPath: cwd });
+      seeded.importMessages([
+        { role: "user", content: "first turn", timestamp: Date.now() },
+        { role: "assistant", content: [{ type: "text", text: "first reply" }], timestamp: Date.now() },
+      ]);
+      seeded.save();
+      setSharedSession({ sessionId, cursor: 42, cwd });
+
+      const result = syncSharedSession(
+        [
+          { role: "user", content: "compressed summary of everything so far", timestamp: Date.now() },
+          { role: "assistant", content: [{ type: "text", text: "acknowledged" }], timestamp: Date.now() },
+          { role: "user", content: "continue", timestamp: Date.now() },
+        ],
+        cwd,
+      );
+
+      assert.equal(result.sessionId, sessionId, "a pruned context must rebuild under the same UUID, not clean-start");
+      assert.equal(result.preserveSharedSession, undefined);
+      const rebuilt = openSession({ sessionId, projectPath: cwd });
+      assert.equal(rebuilt.messages.length, 2, "the rebuilt session holds exactly the pruned priors");
+      assert.deepEqual(getSharedSession()?.cursor, 2, "the cursor moves to the pruned length");
+    } finally {
+      deleteSession(sessionId, cwd);
       rmSync(cwd, { recursive: true, force: true });
     }
   });

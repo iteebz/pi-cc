@@ -204,6 +204,7 @@ export function syncSharedSession(
   cwd: string,
   customToolNameToSdk?: Map<string, string>,
   modelId?: string,
+  isReentrant = false,
 ): SyncResult {
   const priorMessages = messages.slice(0, turnStart(messages)); // everything before the current user turn
 
@@ -224,11 +225,17 @@ export function syncSharedSession(
       return { sessionId: sharedSession.sessionId };
     }
   }
-  // Subagent isolation. A subagent's own priors are shorter than the parent's
-  // cursor, so it lands here, gets a fresh session, and that ephemeral session is
-  // deleted when its query completes. Remove this branch and a subagent resumes,
-  // then overwrites, the parent's session.
-  if (sharedSession && !sharedSession.needsRebuild && priorMessages.length < sharedSession.cursor) {
+  // Subagent isolation. A reentrant subagent's own priors are shorter than the
+  // parent's cursor, so it lands here, gets a fresh session, and that ephemeral
+  // session is deleted when its query completes. Remove this branch and a
+  // subagent resumes, then overwrites, the parent's session.
+  //
+  // A NON-reentrant shorter context is a different situation entirely (issue #30):
+  // pi pruned or compacted its history, so the context shrank under us. Clean-
+  // starting there would answer with no prior conversation at all. Fall through
+  // to REBUILD instead — the (compressed) priors are re-written under the same
+  // UUID, which keeps the context and bounds the JSONL.
+  if (isReentrant && sharedSession && !sharedSession.needsRebuild && priorMessages.length < sharedSession.cursor) {
     debug(
       `Case 1 synthetic: clean start for shorter context, preserving shared session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`,
     );
