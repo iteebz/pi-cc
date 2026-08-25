@@ -11,16 +11,16 @@ import { describe, it } from "node:test";
 const { CC_CHILD_ENV } = await import("../src/config.js");
 
 describe("Claude Code child environment", () => {
-	it("disables auto-compaction and claude.ai MCP servers", () => {
-		assert.deepEqual(CC_CHILD_ENV, {
-			ENABLE_CLAUDEAI_MCP_SERVERS: "0",
-			DISABLE_AUTO_COMPACT: "1",
-		});
-	});
+  it("disables auto-compaction and claude.ai MCP servers", () => {
+    assert.deepEqual(CC_CHILD_ENV, {
+      ENABLE_CLAUDEAI_MCP_SERVERS: "0",
+      DISABLE_AUTO_COMPACT: "1",
+    });
+  });
 
-	// Deliberately not asserted here: that every `query()` call site spreads the
-	// constant. The only way to check that from a unit test is to grep src/index.ts,
-	// which fails on innocent indirection (`env: childEnv`) and would have to be
-	// taught about it — a brittle test that reads as coverage. The three sites
-	// referencing CC_CHILD_ENV are the guard, and a fourth is a review question.
+  // Deliberately not asserted here: that every `query()` call site spreads the
+  // constant. The only way to check that from a unit test is to grep src/index.ts,
+  // which fails on innocent indirection (`env: childEnv`) and would have to be
+  // taught about it — a brittle test that reads as coverage. The three sites
+  // referencing CC_CHILD_ENV are the guard, and a fourth is a review question.
 });

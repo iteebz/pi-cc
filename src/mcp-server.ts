@@ -38,10 +38,10 @@ import type { McpResult } from "./extract-tool-results.js";
 const TOOL_USE_ID_META = "claudecode/toolUseId";
 
 export interface McpToolDef {
-	name: string;
-	description: string;
-	inputSchema: unknown;
-	handler: (toolCallId: string) => Promise<McpResult>;
+  name: string;
+  description: string;
+  inputSchema: unknown;
+  handler: (toolCallId: string) => Promise<McpResult>;
 }
 
 // MCP requires an object schema. Pi types tool parameters as any TypeBox schema,
@@ -50,39 +50,39 @@ export interface McpToolDef {
 // "takes no arguments" instead would surface much later as Claude calling the
 // tool with no arguments and pi's own validation rejecting them.
 function assertObjectSchema(tool: McpToolDef): void {
-	const schema = tool.inputSchema as Record<string, unknown> | undefined;
-	if (schema?.type !== "object") {
-		throw new Error(`${tool.name}: MCP tool parameters must be an object schema, got ${JSON.stringify(schema)}`);
-	}
+  const schema = tool.inputSchema as Record<string, unknown> | undefined;
+  if (schema?.type !== "object") {
+    throw new Error(`${tool.name}: MCP tool parameters must be an object schema, got ${JSON.stringify(schema)}`);
+  }
 }
 
 export function createToolServer(name: string, tools: McpToolDef[]) {
-	const server = new McpServer({ name, version: "1.0.0" }, { capabilities: { tools: {} } });
-	const byName = new Map(tools.map((tool) => [tool.name, tool]));
-	for (const tool of tools) assertObjectSchema(tool);
+  const server = new McpServer({ name, version: "1.0.0" }, { capabilities: { tools: {} } });
+  const byName = new Map(tools.map((tool) => [tool.name, tool]));
+  for (const tool of tools) assertObjectSchema(tool);
 
-	server.server.setRequestHandler(ListToolsRequestSchema, () => ({
-		tools: tools.map((tool) => ({
-			name: tool.name,
-			description: tool.description,
-			inputSchema: tool.inputSchema as Record<string, unknown>,
-		})),
-	}));
+  server.server.setRequestHandler(ListToolsRequestSchema, () => ({
+    tools: tools.map((tool) => ({
+      name: tool.name,
+      description: tool.description,
+      inputSchema: tool.inputSchema as Record<string, unknown>,
+    })),
+  }));
 
-	server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
-		const tool = byName.get(request.params.name);
-		if (!tool) throw new Error(`Unknown tool: ${request.params.name}`);
-		const toolCallId = request.params._meta?.[TOOL_USE_ID_META];
-		if (typeof toolCallId !== "string") {
-			throw new Error(
-				`${tool.name}: tools/call is missing _meta["${TOOL_USE_ID_META}"] — cannot pair the result with its tool call`,
-			);
-		}
-		// Narrowed deliberately: McpResult also carries `toolCallId`, which is our
-		// own bookkeeping for pairing and not part of MCP's CallToolResult.
-		const { content, isError } = await tool.handler(toolCallId);
-		return { content, isError };
-	});
+  server.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    const tool = byName.get(request.params.name);
+    if (!tool) throw new Error(`Unknown tool: ${request.params.name}`);
+    const toolCallId = request.params._meta?.[TOOL_USE_ID_META];
+    if (typeof toolCallId !== "string") {
+      throw new Error(
+        `${tool.name}: tools/call is missing _meta["${TOOL_USE_ID_META}"] — cannot pair the result with its tool call`,
+      );
+    }
+    // Narrowed deliberately: McpResult also carries `toolCallId`, which is our
+    // own bookkeeping for pairing and not part of MCP's CallToolResult.
+    const { content, isError } = await tool.handler(toolCallId);
+    return { content, isError };
+  });
 
-	return { type: "sdk" as const, name, instance: server };
+  return { type: "sdk" as const, name, instance: server };
 }

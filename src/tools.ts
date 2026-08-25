@@ -23,55 +23,55 @@ import { notify } from "./ui.js";
 // tool_use id, left the handler for the retry with no result to release it:
 // pi's result arrived keyed to the dead id, and both sides deadlocked.
 export function piToolNameFor(name: string, customToolNameToPi: Map<string, string>): string | undefined {
-	return customToolNameToPi.get(name) ?? customToolNameToPi.get(name.toLowerCase());
+  return customToolNameToPi.get(name) ?? customToolNameToPi.get(name.toLowerCase());
 }
 
 // Renames for Claude Code SDK param names that differ from pi's native names.
 // Keys not listed here pass through unchanged, so new pi params work automatically.
 const SDK_KEY_RENAMES: Record<string, Record<string, string>> = {
-	read: { file_path: "path" },
-	write: { file_path: "path" },
-	edit: { file_path: "path", old_string: "oldText", new_string: "newText", old_text: "oldText", new_text: "newText" },
+  read: { file_path: "path" },
+  write: { file_path: "path" },
+  edit: { file_path: "path", old_string: "oldText", new_string: "newText", old_text: "oldText", new_text: "newText" },
 };
 
 // Maps SDK tool args to pi tool args via key renaming + pass-through.
 // Pi's own prepareArguments hooks handle any structural transforms (e.g. edit oldText/newText → edits[]).
 export function mapToolArgs(toolName: string, args: Record<string, unknown> | undefined): Record<string, unknown> {
-	const input = args ?? {};
-	const renames = SDK_KEY_RENAMES[toolName.toLowerCase()];
-	const result: Record<string, unknown> = {};
-	for (const [key, value] of Object.entries(input)) {
-		const piKey = renames?.[key] ?? key;
-		if (!(piKey in result)) result[piKey] = value; // first alias wins
-	}
-	// Pi bash has no default timeout; add a safety default
-	if (toolName.toLowerCase() === "bash" && result.timeout == null) {
-		result.timeout = 120;
-	}
-	return result;
+  const input = args ?? {};
+  const renames = SDK_KEY_RENAMES[toolName.toLowerCase()];
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(input)) {
+    const piKey = renames?.[key] ?? key;
+    if (!(piKey in result)) result[piKey] = value; // first alias wins
+  }
+  // Pi bash has no default timeout; add a safety default
+  if (toolName.toLowerCase() === "bash" && result.timeout == null) {
+    result.timeout = 120;
+  }
+  return result;
 }
 
 export function resolveMcpTools(context: Context): {
-	mcpTools: Tool[];
-	customToolNameToSdk: Map<string, string>;
-	customToolNameToPi: Map<string, string>;
+  mcpTools: Tool[];
+  customToolNameToSdk: Map<string, string>;
+  customToolNameToPi: Map<string, string>;
 } {
-	const mcpTools: Tool[] = [];
-	const customToolNameToSdk = new Map<string, string>();
-	const customToolNameToPi = new Map<string, string>();
+  const mcpTools: Tool[] = [];
+  const customToolNameToSdk = new Map<string, string>();
+  const customToolNameToPi = new Map<string, string>();
 
-	if (!context.tools) return { mcpTools, customToolNameToSdk, customToolNameToPi };
+  if (!context.tools) return { mcpTools, customToolNameToSdk, customToolNameToPi };
 
-	for (const tool of context.tools) {
-		const sdkName = `${MCP_TOOL_PREFIX}${tool.name}`;
-		mcpTools.push(tool);
-		customToolNameToSdk.set(tool.name, sdkName);
-		customToolNameToSdk.set(tool.name.toLowerCase(), sdkName);
-		customToolNameToPi.set(sdkName, tool.name);
-		customToolNameToPi.set(sdkName.toLowerCase(), tool.name);
-	}
+  for (const tool of context.tools) {
+    const sdkName = `${MCP_TOOL_PREFIX}${tool.name}`;
+    mcpTools.push(tool);
+    customToolNameToSdk.set(tool.name, sdkName);
+    customToolNameToSdk.set(tool.name.toLowerCase(), sdkName);
+    customToolNameToPi.set(sdkName, tool.name);
+    customToolNameToPi.set(sdkName.toLowerCase(), tool.name);
+  }
 
-	return { mcpTools, customToolNameToSdk, customToolNameToPi };
+  return { mcpTools, customToolNameToSdk, customToolNameToPi };
 }
 
 // Creates an MCP server that bridges pi tools to the SDK. Each tool handler
@@ -85,30 +85,30 @@ export function resolveMcpTools(context: Context): {
 // Handlers close over the captured `queryCtx`, ensuring they operate on the
 // correct query's state while multiple queries run concurrently.
 export function buildMcpServers(
-	tools: Tool[],
-	queryCtx: QueryContext,
+  tools: Tool[],
+  queryCtx: QueryContext,
 ): Record<string, ReturnType<typeof createToolServer>> | undefined {
-	if (!tools.length) return undefined;
-	const mcpTools = tools.map((tool) => ({
-		name: tool.name,
-		description: tool.description,
-		inputSchema: tool.parameters,
-		handler: async (toolCallId: string) => {
-			if (queryCtx.pendingResults.has(toolCallId)) {
-				const result = queryCtx.pendingResults.get(toolCallId)!;
-				queryCtx.pendingResults.delete(toolCallId);
-				debug(
-					`mcp handler: ${tool.name} [${toolCallId}] → resolved from queue (${queryCtx.pendingResults.size} remaining)`,
-				);
-				return result;
-			}
-			debug(`mcp handler: ${tool.name} [${toolCallId}] → waiting`);
-			return new Promise<McpResult>((resolve) => {
-				queryCtx.pendingToolCalls.set(toolCallId, { toolName: tool.name, resolve });
-			});
-		},
-	}));
-	return { [MCP_SERVER_NAME]: createToolServer(MCP_SERVER_NAME, mcpTools) };
+  if (!tools.length) return undefined;
+  const mcpTools = tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    inputSchema: tool.parameters,
+    handler: async (toolCallId: string) => {
+      if (queryCtx.pendingResults.has(toolCallId)) {
+        const result = queryCtx.pendingResults.get(toolCallId)!;
+        queryCtx.pendingResults.delete(toolCallId);
+        debug(
+          `mcp handler: ${tool.name} [${toolCallId}] → resolved from queue (${queryCtx.pendingResults.size} remaining)`,
+        );
+        return result;
+      }
+      debug(`mcp handler: ${tool.name} [${toolCallId}] → waiting`);
+      return new Promise<McpResult>((resolve) => {
+        queryCtx.pendingToolCalls.set(toolCallId, { toolName: tool.name, resolve });
+      });
+    },
+  }));
+  return { [MCP_SERVER_NAME]: createToolServer(MCP_SERVER_NAME, mcpTools) };
 }
 
 /** Releases this turn's tool results to their MCP handlers, after first pushing
@@ -125,61 +125,61 @@ export function buildMcpServers(
  *  Both the post-tool-call drain and the FIFO ordering are CC CLI internals,
  *  not SDK contract — tests/int-tool-message.mjs is the tripwire if they move. */
 export async function deliverToolResults(
-	c: QueryContext,
-	results: McpResult[],
-	steer: ContentBlockParam[] | null,
-	contextLength: number,
+  c: QueryContext,
+  results: McpResult[],
+  steer: ContentBlockParam[] | null,
+  contextLength: number,
 ): Promise<void> {
-	if (steer) {
-		const text = steer.map((b) => (b.type === "text" ? b.text : "[image]")).join("\n");
-		if (!c.promptStream) {
-			debug(`WARNING: steer with no prompt stream, dropping: ${text.slice(0, 60)}`);
-			steerMissedSession(text);
-		} else {
-			try {
-				await c.promptStream.push(userMessage(steer, "next"));
-				debug(`provider: steer written to CC stdin before tool result: ${text.slice(0, 60)}`);
-			} catch (error) {
-				// The query is ending — pushing further input would wedge tool-result
-				// delivery, so the steer doesn't reach this query. It is still in
-				// pi's context, and the caller has already advanced the session
-				// cursor past it, so force a rebuild or CC would never see it.
-				debug(`provider: steer push rejected, delivering tool result anyway:`, error);
-				steerMissedSession(text);
-			}
-		}
-	}
+  if (steer) {
+    const text = steer.map((b) => (b.type === "text" ? b.text : "[image]")).join("\n");
+    if (!c.promptStream) {
+      debug(`WARNING: steer with no prompt stream, dropping: ${text.slice(0, 60)}`);
+      steerMissedSession(text);
+    } else {
+      try {
+        await c.promptStream.push(userMessage(steer, "next"));
+        debug(`provider: steer written to CC stdin before tool result: ${text.slice(0, 60)}`);
+      } catch (error) {
+        // The query is ending — pushing further input would wedge tool-result
+        // delivery, so the steer doesn't reach this query. It is still in
+        // pi's context, and the caller has already advanced the session
+        // cursor past it, so force a rebuild or CC would never see it.
+        debug(`provider: steer push rejected, delivering tool result anyway:`, error);
+        steerMissedSession(text);
+      }
+    }
+  }
 
-	debug(
-		`provider: tool results, ${results.length} results, ${c.pendingToolCalls.size} waiting handlers, ctx.msgs=${contextLength}`,
-	);
-	for (const result of results) {
-		const id = result.toolCallId;
-		if (id && c.pendingToolCalls.has(id)) {
-			const pending = c.pendingToolCalls.get(id)!;
-			c.pendingToolCalls.delete(id);
-			debug(
-				`provider: resolving ${pending.toolName} [${id}]${result.isError ? " (error)" : ""}`,
-				JSON.stringify(result.content).slice(0, 200),
-			);
-			pending.resolve(result);
-		} else if (id) {
-			c.pendingResults.set(id, result);
-			debug(`provider: queued result [${id}] (${c.pendingResults.size} pending)`);
-		} else {
-			debug(`WARNING: tool result without toolCallId, cannot match`);
-		}
-		if (c.pendingToolCalls.size > 0 && c.pendingResults.size > 0) {
-			debug(`BUG: both maps non-empty! handlers=${c.pendingToolCalls.size} results=${c.pendingResults.size}`);
-		}
-	}
-	if (c.pendingToolCalls.size > 0) {
-		debug(`WARNING: ${c.pendingToolCalls.size} MCP handlers still waiting after delivering ${results.length} results`);
-		notify(
-			`Claude bridge: ${c.pendingToolCalls.size} tool handler(s) still waiting — provider may be stuck`,
-			"warning",
-		);
-	}
+  debug(
+    `provider: tool results, ${results.length} results, ${c.pendingToolCalls.size} waiting handlers, ctx.msgs=${contextLength}`,
+  );
+  for (const result of results) {
+    const id = result.toolCallId;
+    if (id && c.pendingToolCalls.has(id)) {
+      const pending = c.pendingToolCalls.get(id)!;
+      c.pendingToolCalls.delete(id);
+      debug(
+        `provider: resolving ${pending.toolName} [${id}]${result.isError ? " (error)" : ""}`,
+        JSON.stringify(result.content).slice(0, 200),
+      );
+      pending.resolve(result);
+    } else if (id) {
+      c.pendingResults.set(id, result);
+      debug(`provider: queued result [${id}] (${c.pendingResults.size} pending)`);
+    } else {
+      debug(`WARNING: tool result without toolCallId, cannot match`);
+    }
+    if (c.pendingToolCalls.size > 0 && c.pendingResults.size > 0) {
+      debug(`BUG: both maps non-empty! handlers=${c.pendingToolCalls.size} results=${c.pendingResults.size}`);
+    }
+  }
+  if (c.pendingToolCalls.size > 0) {
+    debug(`WARNING: ${c.pendingToolCalls.size} MCP handlers still waiting after delivering ${results.length} results`);
+    notify(
+      `Claude bridge: ${c.pendingToolCalls.size} tool handler(s) still waiting — provider may be stuck`,
+      "warning",
+    );
+  }
 }
 
 /** Abort teardown for one query: settle everything that would otherwise be left
@@ -187,6 +187,6 @@ export async function deliverToolResults(
  *  abort, so an in-flight prompt-stream push would hang forever and take
  *  tool-result delivery with it. */
 export function drainForAbort(c: QueryContext, promptStream: PromptStream): void {
-	promptStream.fail(new Error("Operation aborted"));
-	c.releasePendingToolCalls("Operation aborted");
+  promptStream.fail(new Error("Operation aborted"));
+  c.releasePendingToolCalls("Operation aborted");
 }

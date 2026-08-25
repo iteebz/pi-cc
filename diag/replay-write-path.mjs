@@ -36,18 +36,18 @@ const STUB = "no tool result recorded";
 
 const path = process.argv[2];
 if (!path) {
-	console.error("usage: node --import tsx diag/replay-write-path.mjs <pi-session.jsonl>");
-	process.exit(2);
+  console.error("usage: node --import tsx diag/replay-write-path.mjs <pi-session.jsonl>");
+  process.exit(2);
 }
 
 function sample(values, limit) {
-	if (values.length <= limit) return values;
-	const step = values.length / limit;
-	return Array.from({ length: limit }, (_, i) => values[Math.floor(i * step)]);
+  if (values.length <= limit) return values;
+  const step = values.length / limit;
+  return Array.from({ length: limit }, (_, i) => values[Math.floor(i * step)]);
 }
 
 const blocksOf = (messages, role) =>
-	messages.filter((m) => m.role === role && Array.isArray(m.content)).flatMap((m) => m.content);
+  messages.filter((m) => m.role === role && Array.isArray(m.content)).flatMap((m) => m.content);
 
 // --- Replay ---
 
@@ -62,17 +62,17 @@ const renamed = [...sanitizedIds.entries()].filter(([from, to]) => from !== to);
 
 console.log(`session      ${path}`);
 console.log(
-	`pi messages  ${messages.length}${skipped ? ` (${skipped} non-message records skipped)` : ""} — ${Object.entries(
-		roles,
-	)
-		.map(([r, n]) => `${r}:${n}`)
-		.join(" ")}`,
+  `pi messages  ${messages.length}${skipped ? ` (${skipped} non-message records skipped)` : ""} — ${Object.entries(
+    roles,
+  )
+    .map(([r, n]) => `${r}:${n}`)
+    .join(" ")}`,
 );
 console.log(
-	`transform    ${messages.length} pi → ${anthropicMessages.length} anthropic → ${repaired.length} repaired → ${records.length} session records`,
+  `transform    ${messages.length} pi → ${anthropicMessages.length} anthropic → ${repaired.length} repaired → ${records.length} session records`,
 );
 console.log(
-	`tool ids     ${sanitizedIds.size} seen, ${renamed.length} rewritten to satisfy Anthropic${renamed.length ? ` (e.g. ${renamed[0][0]} → ${renamed[0][1]})` : ""}`,
+  `tool ids     ${sanitizedIds.size} seen, ${renamed.length} rewritten to satisfy Anthropic${renamed.length ? ` (e.g. ${renamed[0][0]} → ${renamed[0][1]})` : ""}`,
 );
 
 const defects = [];
@@ -87,29 +87,29 @@ const unanswered = uses.filter((b) => !resultIds.has(b.id)).map((b) => b.id);
 const orphaned = results.filter((b) => !useIds.has(b.tool_use_id)).map((b) => b.tool_use_id);
 
 console.log(
-	`pairing      ${uses.length} tool_use / ${results.length} tool_result — ${unanswered.length} unanswered, ${orphaned.length} orphaned`,
+  `pairing      ${uses.length} tool_use / ${results.length} tool_result — ${unanswered.length} unanswered, ${orphaned.length} orphaned`,
 );
 if (unanswered.length)
-	defects.push(`${unanswered.length} tool_use without a result: ${unanswered.slice(0, 5).join(", ")}`);
+  defects.push(`${unanswered.length} tool_use without a result: ${unanswered.slice(0, 5).join(", ")}`);
 if (orphaned.length) defects.push(`${orphaned.length} tool_result without a call: ${orphaned.slice(0, 5).join(", ")}`);
 
 const duplicateIds = uses.map((b) => b.id).filter((id, i, all) => all.indexOf(id) !== i);
 if (duplicateIds.length)
-	defects.push(
-		`${duplicateIds.length} tool_use ids collide after sanitizing: ${[...new Set(duplicateIds)].slice(0, 5).join(", ")}`,
-	);
+  defects.push(
+    `${duplicateIds.length} tool_use ids collide after sanitizing: ${[...new Set(duplicateIds)].slice(0, 5).join(", ")}`,
+  );
 
 // --- Synthetic stubs ---
 
 const stubs = results.filter((b) => String(b.content).includes(STUB));
 console.log(`stubs        ${stubs.length} synthetic "[${STUB}]" placeholders`);
 if (stubs.length)
-	defects.push(
-		`${stubs.length} results replaced by a synthetic stub: ${stubs
-			.slice(0, 5)
-			.map((b) => b.tool_use_id)
-			.join(", ")}`,
-	);
+  defects.push(
+    `${stubs.length} results replaced by a synthetic stub: ${stubs
+      .slice(0, 5)
+      .map((b) => b.tool_use_id)
+      .join(", ")}`,
+  );
 
 // --- Result preservation ---
 
@@ -117,53 +117,53 @@ const piResults = messages.filter((m) => m.role === "toolResult");
 const lost = piResults.filter((m, i) => results[i]?.tool_use_id !== sanitizedIds.get(m.toolCallId));
 console.log(`results kept ${results.length - stubs.length}/${piResults.length} pi tool results reached the transcript`);
 if (lost.length)
-	defects.push(
-		`${lost.length} pi tool results are missing or reordered, first at pi message ${messages.indexOf(lost[0])} (${lost[0].toolCallId})`,
-	);
+  defects.push(
+    `${lost.length} pi tool results are missing or reordered, first at pi message ${messages.indexOf(lost[0])} (${lost[0].toolCallId})`,
+  );
 
 // --- Determinism ---
 
 const deterministic = JSON.stringify(transcript(messages)) === JSON.stringify(records);
 console.log(
-	`determinism  ${deterministic ? "identical on a second conversion" : "CONTENT DIFFERS between two conversions"}`,
+  `determinism  ${deterministic ? "identical on a second conversion" : "CONTENT DIFFERS between two conversions"}`,
 );
 if (!deterministic)
-	defects.push("conversion is not deterministic — the same history produced two different transcripts");
+  defects.push("conversion is not deterministic — the same history produced two different transcripts");
 
 // --- Prefix stability ---
 
 const settled = settledPrefixes(messages);
 const checked = sample(
-	settled.filter((n) => n < messages.length),
-	MAX_PREFIX_SAMPLES,
+  settled.filter((n) => n < messages.length),
+  MAX_PREFIX_SAMPLES,
 );
 const unstable = [];
 for (const n of checked) {
-	const shorter = transcript(messages.slice(0, n));
-	const at = shorter.findIndex((rec, i) => records[i] !== rec);
-	if (at >= 0) unstable.push({ n, at, of: shorter.length });
+  const shorter = transcript(messages.slice(0, n));
+  const at = shorter.findIndex((rec, i) => records[i] !== rec);
+  if (at >= 0) unstable.push({ n, at, of: shorter.length });
 }
 console.log(
-	`prefix       ${checked.length} settled prefixes checked (of ${settled.length} settled, ${messages.length - settled.length} mid-turn), ${unstable.length} unstable`,
+  `prefix       ${checked.length} settled prefixes checked (of ${settled.length} settled, ${messages.length - settled.length} mid-turn), ${unstable.length} unstable`,
 );
 for (const u of unstable.slice(0, 5)) {
-	console.log(`             history[0..${u.n}] diverges at record ${u.at} of ${u.of}`);
-	console.log(
-		`               rebuilt: ${u.at < records.length ? records[u.at].slice(0, 160) : "(transcript is shorter)"}`,
-	);
-	console.log(`               shorter: ${transcript(messages.slice(0, u.n))[u.at].slice(0, 160)}`);
+  console.log(`             history[0..${u.n}] diverges at record ${u.at} of ${u.of}`);
+  console.log(
+    `               rebuilt: ${u.at < records.length ? records[u.at].slice(0, 160) : "(transcript is shorter)"}`,
+  );
+  console.log(`               shorter: ${transcript(messages.slice(0, u.n))[u.at].slice(0, 160)}`);
 }
 if (unstable.length)
-	defects.push(
-		`${unstable.length} settled prefixes are not content-prefixes of the full rebuild — every rebuild re-caches from record ${unstable[0].at}`,
-	);
+  defects.push(
+    `${unstable.length} settled prefixes are not content-prefixes of the full rebuild — every rebuild re-caches from record ${unstable[0].at}`,
+  );
 
 // --- Verdict ---
 
 console.log("");
 if (!defects.length) {
-	console.log("OK — the rebuild preserves every result and stays cache-stable.");
-	process.exit(0);
+  console.log("OK — the rebuild preserves every result and stays cache-stable.");
+  process.exit(0);
 }
 console.log(`${defects.length} defect(s):`);
 for (const d of defects) console.log(`  - ${d}`);

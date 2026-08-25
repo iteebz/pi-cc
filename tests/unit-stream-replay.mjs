@@ -24,194 +24,194 @@ const { consumeQuery } = await import("../src/stream.js");
 // pi-ai's cost calculation, which the hand-built streams never exercise. Zeros are
 // what buildModels ships (src/models.ts) since Claude Code billing is per-plan.
 const model = {
-	api: "anthropic-messages",
-	provider: "anthropic",
-	id: "claude-haiku-4-5",
-	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  api: "anthropic-messages",
+  provider: "anthropic",
+  id: "claude-haiku-4-5",
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 };
 
 function fixture(name) {
-	const path = new URL(`./fixtures/sdk-streams/${name}.jsonl`, import.meta.url);
-	return readFileSync(path, "utf8")
-		.split("\n")
-		.filter(Boolean)
-		.map((l) => JSON.parse(l));
+  const path = new URL(`./fixtures/sdk-streams/${name}.jsonl`, import.meta.url);
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .filter(Boolean)
+    .map((l) => JSON.parse(l));
 }
 
 /** Replays a fixture through the real consumeQuery, collecting the pi-side events. */
 async function replay(name, { toolNames = ["read"] } = {}) {
-	const events = [];
-	const c = new QueryContext();
-	c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
-	c.resetTurnState(model);
-	// The map the provider path builds from the served tool list: SDK name → pi name.
-	const customToolNameToPi = new Map(toolNames.map((n) => [`mcp__custom-tools__${n}`, n]));
+  const events = [];
+  const c = new QueryContext();
+  c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
+  c.resetTurnState(model);
+  // The map the provider path builds from the served tool list: SDK name → pi name.
+  const customToolNameToPi = new Map(toolNames.map((n) => [`mcp__custom-tools__${n}`, n]));
 
-	const messages = fixture(name);
-	async function* stream() {
-		for (const m of messages) yield m;
-	}
-	const { capturedSessionId } = await consumeQuery(stream(), customToolNameToPi, model, () => false, c);
-	return { events, ctx: c, messages, capturedSessionId };
+  const messages = fixture(name);
+  async function* stream() {
+    for (const m of messages) yield m;
+  }
+  const { capturedSessionId } = await consumeQuery(stream(), customToolNameToPi, model, () => false, c);
+  return { events, ctx: c, messages, capturedSessionId };
 }
 
 const blocks = (ctx, type) => ctx.turnOutput.content.filter((b) => b.type === type);
 
 describe("replaying a recorded text-only turn", () => {
-	it("produces the assistant text and a clean stop", async () => {
-		const { ctx, events } = await replay("text");
+  it("produces the assistant text and a clean stop", async () => {
+    const { ctx, events } = await replay("text");
 
-		assert.equal(
-			blocks(ctx, "text")
-				.map((b) => b.text)
-				.join("")
-				.trim(),
-			"ALPHA",
-		);
-		assert.equal(ctx.turnOutput.stopReason, "stop");
-		assert.equal(ctx.turnSawToolCall, false);
-		assert.ok(
-			events.some((e) => e.type === "text_delta"),
-			"pi should have seen streaming deltas",
-		);
-	});
+    assert.equal(
+      blocks(ctx, "text")
+        .map((b) => b.text)
+        .join("")
+        .trim(),
+      "ALPHA",
+    );
+    assert.equal(ctx.turnOutput.stopReason, "stop");
+    assert.equal(ctx.turnSawToolCall, false);
+    assert.ok(
+      events.some((e) => e.type === "text_delta"),
+      "pi should have seen streaming deltas",
+    );
+  });
 
-	it("reports usage and captures the session id", async () => {
-		const { ctx, capturedSessionId } = await replay("text");
+  it("reports usage and captures the session id", async () => {
+    const { ctx, capturedSessionId } = await replay("text");
 
-		assert.ok(ctx.turnOutput.usage.output > 0, "output tokens");
-		assert.ok(
-			ctx.turnOutput.usage.input + ctx.turnOutput.usage.cacheRead + ctx.turnOutput.usage.cacheWrite > 0,
-			"prompt tokens",
-		);
-		assert.match(capturedSessionId ?? "", /^[0-9a-f-]{36}$/);
-	});
+    assert.ok(ctx.turnOutput.usage.output > 0, "output tokens");
+    assert.ok(
+      ctx.turnOutput.usage.input + ctx.turnOutput.usage.cacheRead + ctx.turnOutput.usage.cacheWrite > 0,
+      "prompt tokens",
+    );
+    assert.match(capturedSessionId ?? "", /^[0-9a-f-]{36}$/);
+  });
 });
 
 describe("replaying a recorded single-tool turn", () => {
-	it("surfaces the tool call under its pi name and ends the turn on it", async () => {
-		const { ctx } = await replay("single-tool");
+  it("surfaces the tool call under its pi name and ends the turn on it", async () => {
+    const { ctx } = await replay("single-tool");
 
-		const calls = blocks(ctx, "toolCall");
-		assert.equal(calls.length, 1);
-		assert.equal(calls[0].name, "read", "SDK's mcp__custom-tools__read must arrive as pi's read");
-		assert.ok(calls[0].id.startsWith("toolu_"));
-		assert.equal(ctx.turnSawToolCall, true);
-		assert.deepEqual(ctx.turnToolCallIds, [calls[0].id]);
-	});
+    const calls = blocks(ctx, "toolCall");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].name, "read", "SDK's mcp__custom-tools__read must arrive as pi's read");
+    assert.ok(calls[0].id.startsWith("toolu_"));
+    assert.equal(ctx.turnSawToolCall, true);
+    assert.deepEqual(ctx.turnToolCallIds, [calls[0].id]);
+  });
 });
 
 describe("replaying a hosted web-search turn", () => {
-	// web-search.jsonl is synthetic (see the file): a live web result carries real
-	// URLs and non-deterministic content that cannot be scrubbed on demand, so like
-	// unit-error-result its shape is hand-built to match what CC emits. What matters
-	// is the *shape* — server_tool_use, web_search_tool_result, then the answer text.
-	it("renders a [web search] marker and the answer, without a pi-side tool call", async () => {
-		const { ctx, events } = await replay("web-search", { toolNames: [] });
+  // web-search.jsonl is synthetic (see the file): a live web result carries real
+  // URLs and non-deterministic content that cannot be scrubbed on demand, so like
+  // unit-error-result its shape is hand-built to match what CC emits. What matters
+  // is the *shape* — server_tool_use, web_search_tool_result, then the answer text.
+  it("renders a [web search] marker and the answer, without a pi-side tool call", async () => {
+    const { ctx, events } = await replay("web-search", { toolNames: [] });
 
-		const text = blocks(ctx, "text")
-			.map((b) => b.text)
-			.join("");
-		assert.match(text, /\[web search\]/, "the hosted call must surface as a visible marker");
-		assert.match(text, /FOUNDED_2021/, "the model's post-search answer must still render");
+    const text = blocks(ctx, "text")
+      .map((b) => b.text)
+      .join("");
+    assert.match(text, /\[web search\]/, "the hosted call must surface as a visible marker");
+    assert.match(text, /FOUNDED_2021/, "the model's post-search answer must still render");
 
-		// The cache seam: a hosted tool runs server-side and streams its result inside
-		// CC's own context. It must NOT look like a pi tool call — turnSawToolCall
-		// staying false is what keeps the stream from ending for a roundtrip, which
-		// would rebuild the session and flush the prompt cache.
-		assert.equal(ctx.turnSawToolCall, false, "hosted web tools must not register as pi tool calls");
-		assert.deepEqual(ctx.turnToolCallIds, [], "no pi-side tool ids for a hosted call");
-		assert.equal(blocks(ctx, "toolCall").length, 0, "server_tool_use must never reach pi as a toolCall");
-		assert.equal(ctx.turnOutput.stopReason, "stop", "the turn ends normally, not on a tool boundary");
-		assert.ok(
-			events.some((e) => e.type === "text_delta" && String(e.delta).includes("[web search]")),
-			"pi should stream the marker",
-		);
-	});
+    // The cache seam: a hosted tool runs server-side and streams its result inside
+    // CC's own context. It must NOT look like a pi tool call — turnSawToolCall
+    // staying false is what keeps the stream from ending for a roundtrip, which
+    // would rebuild the session and flush the prompt cache.
+    assert.equal(ctx.turnSawToolCall, false, "hosted web tools must not register as pi tool calls");
+    assert.deepEqual(ctx.turnToolCallIds, [], "no pi-side tool ids for a hosted call");
+    assert.equal(blocks(ctx, "toolCall").length, 0, "server_tool_use must never reach pi as a toolCall");
+    assert.equal(ctx.turnOutput.stopReason, "stop", "the turn ends normally, not on a tool boundary");
+    assert.ok(
+      events.some((e) => e.type === "text_delta" && String(e.delta).includes("[web search]")),
+      "pi should stream the marker",
+    );
+  });
 
-	it("names the hosted tool in the marker when it is not web_search", async () => {
-		// Inline rather than a second fixture: only the content_block name differs, and
-		// the marker's `: name` suffix is the whole behavior under test.
-		const events = [];
-		const c = new QueryContext();
-		c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
-		c.resetTurnState(model);
-		const frames = [
-			{
-				type: "stream_event",
-				event: {
-					type: "message_start",
-					message: {
-						model: "claude-haiku-4-5",
-						id: "m",
-						type: "message",
-						role: "assistant",
-						content: [],
-						usage: { input_tokens: 1, output_tokens: 1 },
-					},
-				},
-				session_id: "00000000-0000-4000-8000-000000000001",
-			},
-			{
-				type: "stream_event",
-				event: {
-					type: "content_block_start",
-					index: 0,
-					content_block: { type: "server_tool_use", id: "srvtoolu_x", name: "web_fetch", input: {} },
-				},
-				session_id: "00000000-0000-4000-8000-000000000001",
-			},
-			{
-				type: "stream_event",
-				event: { type: "content_block_stop", index: 0 },
-				session_id: "00000000-0000-4000-8000-000000000001",
-			},
-			{
-				type: "stream_event",
-				event: {
-					type: "message_delta",
-					delta: { stop_reason: "end_turn" },
-					usage: { input_tokens: 1, output_tokens: 1 },
-				},
-				session_id: "00000000-0000-4000-8000-000000000001",
-			},
-			{ type: "stream_event", event: { type: "message_stop" }, session_id: "00000000-0000-4000-8000-000000000001" },
-		];
-		async function* stream() {
-			for (const m of frames) yield m;
-		}
-		await consumeQuery(stream(), new Map(), model, () => false, c);
+  it("names the hosted tool in the marker when it is not web_search", async () => {
+    // Inline rather than a second fixture: only the content_block name differs, and
+    // the marker's `: name` suffix is the whole behavior under test.
+    const events = [];
+    const c = new QueryContext();
+    c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
+    c.resetTurnState(model);
+    const frames = [
+      {
+        type: "stream_event",
+        event: {
+          type: "message_start",
+          message: {
+            model: "claude-haiku-4-5",
+            id: "m",
+            type: "message",
+            role: "assistant",
+            content: [],
+            usage: { input_tokens: 1, output_tokens: 1 },
+          },
+        },
+        session_id: "00000000-0000-4000-8000-000000000001",
+      },
+      {
+        type: "stream_event",
+        event: {
+          type: "content_block_start",
+          index: 0,
+          content_block: { type: "server_tool_use", id: "srvtoolu_x", name: "web_fetch", input: {} },
+        },
+        session_id: "00000000-0000-4000-8000-000000000001",
+      },
+      {
+        type: "stream_event",
+        event: { type: "content_block_stop", index: 0 },
+        session_id: "00000000-0000-4000-8000-000000000001",
+      },
+      {
+        type: "stream_event",
+        event: {
+          type: "message_delta",
+          delta: { stop_reason: "end_turn" },
+          usage: { input_tokens: 1, output_tokens: 1 },
+        },
+        session_id: "00000000-0000-4000-8000-000000000001",
+      },
+      { type: "stream_event", event: { type: "message_stop" }, session_id: "00000000-0000-4000-8000-000000000001" },
+    ];
+    async function* stream() {
+      for (const m of frames) yield m;
+    }
+    await consumeQuery(stream(), new Map(), model, () => false, c);
 
-		const text = c.turnOutput.content
-			.filter((b) => b.type === "text")
-			.map((b) => b.text)
-			.join("");
-		assert.match(text, /\[web search: web_fetch\]/, "a non-web_search hosted tool names itself in the marker");
-	});
+    const text = c.turnOutput.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    assert.match(text, /\[web search: web_fetch\]/, "a non-web_search hosted tool names itself in the marker");
+  });
 });
 
 describe("replaying a recorded parallel-tool turn", () => {
-	it("keeps every parallel call, in emission order", async () => {
-		const { ctx } = await replay("parallel-tools");
+  it("keeps every parallel call, in emission order", async () => {
+    const { ctx } = await replay("parallel-tools");
 
-		const calls = blocks(ctx, "toolCall");
-		assert.ok(calls.length >= 2, `expected a parallel batch, got ${calls.length}`);
-		assert.deepEqual(
-			ctx.turnToolCallIds,
-			calls.map((c) => c.id),
-			"routing ids must match the emitted calls, in order",
-		);
-		assert.equal(new Set(calls.map((c) => c.id)).size, calls.length, "no duplicate ids");
-		for (const call of calls) assert.equal(call.name, "read");
-	});
+    const calls = blocks(ctx, "toolCall");
+    assert.ok(calls.length >= 2, `expected a parallel batch, got ${calls.length}`);
+    assert.deepEqual(
+      ctx.turnToolCallIds,
+      calls.map((c) => c.id),
+      "routing ids must match the emitted calls, in order",
+    );
+    assert.equal(new Set(calls.map((c) => c.id)).size, calls.length, "no duplicate ids");
+    for (const call of calls) assert.equal(call.name, "read");
+  });
 
-	// The bug in 122914dd was a tool_use surviving into pi under a name the bridge
-	// does not serve. Recorded streams are the check that the names CC really sends
-	// are the ones the map is keyed on.
-	it("leaves nothing unmapped when the served tool list is empty", async () => {
-		const { ctx } = await replay("parallel-tools", { toolNames: [] });
+  // The bug in 122914dd was a tool_use surviving into pi under a name the bridge
+  // does not serve. Recorded streams are the check that the names CC really sends
+  // are the ones the map is keyed on.
+  it("leaves nothing unmapped when the served tool list is empty", async () => {
+    const { ctx } = await replay("parallel-tools", { toolNames: [] });
 
-		assert.equal(blocks(ctx, "toolCall").length, 0, "unserved names must not reach pi");
-		assert.equal(ctx.turnSawToolCall, false);
-	});
+    assert.equal(blocks(ctx, "toolCall").length, 0, "unserved names must not reach pi");
+    assert.equal(ctx.turnSawToolCall, false);
+  });
 });

@@ -14,125 +14,125 @@ const { consumeQuery, finalizeCurrentStream, resultErrorText } = await import(".
 const fakeModel = { api: "anthropic-messages", provider: "anthropic", id: "test-model" };
 
 function fakeStream() {
-	const events = [];
-	return { events, push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
+  const events = [];
+  return { events, push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
 }
 
 function makeCtx() {
-	const c = new QueryContext();
-	c.currentPiStream = fakeStream();
-	c.resetTurnState(fakeModel);
-	return c;
+  const c = new QueryContext();
+  c.currentPiStream = fakeStream();
+  c.resetTurnState(fakeModel);
+  return c;
 }
 
 async function consume(c, messages) {
-	async function* gen() {
-		for (const m of messages) yield m;
-	}
-	await consumeQuery(gen(), new Map(), fakeModel, () => false, c);
+  async function* gen() {
+    for (const m of messages) yield m;
+  }
+  await consumeQuery(gen(), new Map(), fakeModel, () => false, c);
 }
 
 const errorResult = {
-	type: "result",
-	subtype: "success",
-	is_error: true,
-	api_error_status: 429,
-	result: "API Error: Server is temporarily limiting requests (not your usage limit): Rate limited",
-	terminal_reason: "model_error",
+  type: "result",
+  subtype: "success",
+  is_error: true,
+  api_error_status: 429,
+  result: "API Error: Server is temporarily limiting requests (not your usage limit): Rate limited",
+  terminal_reason: "model_error",
 };
 
 // Shared by the provider turn and the isolated compact summary — the summary path used to
 // accept an errored result as a valid summary, writing "Prompt is too long" into history.
 describe("resultErrorText", () => {
-	it("treats is_error on a success-shaped result as a failure", () => {
-		assert.strictEqual(resultErrorText(errorResult), errorResult.result);
-	});
+  it("treats is_error on a success-shaped result as a failure", () => {
+    assert.strictEqual(resultErrorText(errorResult), errorResult.result);
+  });
 
-	it("returns undefined for a genuine success", () => {
-		assert.strictEqual(
-			resultErrorText({ type: "result", subtype: "success", is_error: false, result: "a summary" }),
-			undefined,
-		);
-	});
+  it("returns undefined for a genuine success", () => {
+    assert.strictEqual(
+      resultErrorText({ type: "result", subtype: "success", is_error: false, result: "a summary" }),
+      undefined,
+    );
+  });
 
-	it("joins errors[] for the dedicated error subtypes", () => {
-		assert.strictEqual(
-			resultErrorText({ type: "result", subtype: "error_during_execution", errors: ["boom", "bang"] }),
-			"boom\nbang",
-		);
-	});
+  it("joins errors[] for the dedicated error subtypes", () => {
+    assert.strictEqual(
+      resultErrorText({ type: "result", subtype: "error_during_execution", errors: ["boom", "bang"] }),
+      "boom\nbang",
+    );
+  });
 
-	it("never returns an empty message for a failure", () => {
-		assert.ok(resultErrorText({ type: "result", subtype: "success", is_error: true, result: "" }));
-		assert.ok(resultErrorText({ type: "result", subtype: "error_max_budget_usd" }));
-		// errors[] is typed string[], with no promise of being non-empty; joining an
-		// empty one marks the turn errored with nothing to show the user.
-		assert.ok(resultErrorText({ type: "result", subtype: "error_during_execution", errors: [] }));
-	});
+  it("never returns an empty message for a failure", () => {
+    assert.ok(resultErrorText({ type: "result", subtype: "success", is_error: true, result: "" }));
+    assert.ok(resultErrorText({ type: "result", subtype: "error_max_budget_usd" }));
+    // errors[] is typed string[], with no promise of being non-empty; joining an
+    // empty one marks the turn errored with nothing to show the user.
+    assert.ok(resultErrorText({ type: "result", subtype: "error_during_execution", errors: [] }));
+  });
 });
 
 describe("error results", () => {
-	it("marks the turn errored and finalizes with an error event", async () => {
-		const c = makeCtx();
-		await consume(c, [errorResult]);
+  it("marks the turn errored and finalizes with an error event", async () => {
+    const c = makeCtx();
+    await consume(c, [errorResult]);
 
-		assert.strictEqual(c.turnOutput.stopReason, "error");
-		assert.strictEqual(c.turnOutput.errorMessage, errorResult.result);
+    assert.strictEqual(c.turnOutput.stopReason, "error");
+    assert.strictEqual(c.turnOutput.errorMessage, errorResult.result);
 
-		const stream = c.currentPiStream;
-		finalizeCurrentStream(c, c.turnOutput.stopReason);
-		const terminal = stream.events.at(-2);
-		assert.strictEqual(terminal.type, "error");
-		assert.strictEqual(terminal.reason, "error");
-		assert.strictEqual(terminal.error.errorMessage, errorResult.result);
-	});
+    const stream = c.currentPiStream;
+    finalizeCurrentStream(c, c.turnOutput.stopReason);
+    const terminal = stream.events.at(-2);
+    assert.strictEqual(terminal.type, "error");
+    assert.strictEqual(terminal.reason, "error");
+    assert.strictEqual(terminal.error.errorMessage, errorResult.result);
+  });
 
-	it("does not re-emit text the synthetic assistant message already delivered", async () => {
-		const c = makeCtx();
-		await consume(c, [
-			{ type: "assistant", message: { model: "<synthetic>", content: [{ type: "text", text: errorResult.result }] } },
-			errorResult,
-		]);
+  it("does not re-emit text the synthetic assistant message already delivered", async () => {
+    const c = makeCtx();
+    await consume(c, [
+      { type: "assistant", message: { model: "<synthetic>", content: [{ type: "text", text: errorResult.result }] } },
+      errorResult,
+    ]);
 
-		const texts = c.turnOutput.content.filter((b) => b.type === "text");
-		assert.deepStrictEqual(
-			texts.map((b) => b.text),
-			[errorResult.result],
-		);
-	});
+    const texts = c.turnOutput.content.filter((b) => b.type === "text");
+    assert.deepStrictEqual(
+      texts.map((b) => b.text),
+      [errorResult.result],
+    );
+  });
 
-	it("still streams and finalizes a successful result normally", async () => {
-		const c = makeCtx();
-		await consume(c, [{ type: "result", subtype: "success", is_error: false, result: "done" }]);
+  it("still streams and finalizes a successful result normally", async () => {
+    const c = makeCtx();
+    await consume(c, [{ type: "result", subtype: "success", is_error: false, result: "done" }]);
 
-		assert.strictEqual(c.turnOutput.stopReason, "stop");
-		assert.strictEqual(c.turnOutput.errorMessage, undefined);
-		assert.deepStrictEqual(c.turnOutput.content, [{ type: "text", text: "done" }]);
+    assert.strictEqual(c.turnOutput.stopReason, "stop");
+    assert.strictEqual(c.turnOutput.errorMessage, undefined);
+    assert.deepStrictEqual(c.turnOutput.content, [{ type: "text", text: "done" }]);
 
-		const stream = c.currentPiStream;
-		finalizeCurrentStream(c, c.turnOutput.stopReason);
-		assert.strictEqual(stream.events.at(-2).type, "done");
-	});
+    const stream = c.currentPiStream;
+    finalizeCurrentStream(c, c.turnOutput.stopReason);
+    assert.strictEqual(stream.events.at(-2).type, "done");
+  });
 
-	// A turn that ended on a tool call has already closed its pi stream, and the
-	// guard that suppresses content events for a closed stream used to swallow the
-	// result message with it — so a 429 mid-tool set no stopReason, no
-	// errorMessage, and logged nothing at all.
-	it("records a failure that arrives after the turn ended on a tool call", async () => {
-		const c = makeCtx();
-		c.currentPiStream = null; // what the tool boundary leaves behind
+  // A turn that ended on a tool call has already closed its pi stream, and the
+  // guard that suppresses content events for a closed stream used to swallow the
+  // result message with it — so a 429 mid-tool set no stopReason, no
+  // errorMessage, and logged nothing at all.
+  it("records a failure that arrives after the turn ended on a tool call", async () => {
+    const c = makeCtx();
+    c.currentPiStream = null; // what the tool boundary leaves behind
 
-		await consume(c, [errorResult]);
+    await consume(c, [errorResult]);
 
-		assert.strictEqual(c.turnOutput.stopReason, "error");
-		assert.strictEqual(c.turnOutput.errorMessage, errorResult.result);
-	});
+    assert.strictEqual(c.turnOutput.stopReason, "error");
+    assert.strictEqual(c.turnOutput.errorMessage, errorResult.result);
+  });
 
-	it("reports the dedicated error subtypes", async () => {
-		const c = makeCtx();
-		await consume(c, [{ type: "result", subtype: "error_max_turns", is_error: true, errors: ["hit the cap"] }]);
+  it("reports the dedicated error subtypes", async () => {
+    const c = makeCtx();
+    await consume(c, [{ type: "result", subtype: "error_max_turns", is_error: true, errors: ["hit the cap"] }]);
 
-		assert.strictEqual(c.turnOutput.stopReason, "error");
-		assert.strictEqual(c.turnOutput.errorMessage, "hit the cap");
-	});
+    assert.strictEqual(c.turnOutput.stopReason, "error");
+    assert.strictEqual(c.turnOutput.errorMessage, "hit the cap");
+  });
 });

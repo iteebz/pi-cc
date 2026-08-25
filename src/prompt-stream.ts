@@ -19,99 +19,99 @@
 import type { SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 
 export interface PromptStream {
-	stream: AsyncGenerator<SDKUserMessage>;
-	/** Enqueue a message; resolves once the SDK has written it to stdin.
-	 *  Rejects (never hangs) if the stream is already ended or failed. */
-	push: (msg: SDKUserMessage) => Promise<void>;
-	/** Close the input: the generator returns, the SDK closes the CLI's stdin. */
-	end: () => void;
-	/** Abandon the input, rejecting every queued and in-flight ack. */
-	fail: (error: Error) => void;
+  stream: AsyncGenerator<SDKUserMessage>;
+  /** Enqueue a message; resolves once the SDK has written it to stdin.
+   *  Rejects (never hangs) if the stream is already ended or failed. */
+  push: (msg: SDKUserMessage) => Promise<void>;
+  /** Close the input: the generator returns, the SDK closes the CLI's stdin. */
+  end: () => void;
+  /** Abandon the input, rejecting every queued and in-flight ack. */
+  fail: (error: Error) => void;
 }
 
 export function makePromptStream(): PromptStream {
-	type Item = { msg: SDKUserMessage; resolve: () => void; reject: (e: Error) => void };
-	const queue: Item[] = [];
-	// The item currently parked at `yield`. Tracked separately so fail() can
-	// settle it — a dying CLI may abandon the pump without ever resuming us,
-	// and an unsettled ack would wedge tool-result delivery forever.
-	let inflight: Item | null = null;
-	let wake: (() => void) | null = null;
-	let done = false;
-	let failure: Error | null = null;
+  type Item = { msg: SDKUserMessage; resolve: () => void; reject: (e: Error) => void };
+  const queue: Item[] = [];
+  // The item currently parked at `yield`. Tracked separately so fail() can
+  // settle it — a dying CLI may abandon the pump without ever resuming us,
+  // and an unsettled ack would wedge tool-result delivery forever.
+  let inflight: Item | null = null;
+  let wake: (() => void) | null = null;
+  let done = false;
+  let failure: Error | null = null;
 
-	const kick = () => {
-		wake?.();
-		wake = null;
-	};
+  const kick = () => {
+    wake?.();
+    wake = null;
+  };
 
-	async function* gen(): AsyncGenerator<SDKUserMessage> {
-		try {
-			while (true) {
-				while (queue.length === 0 && !done && !failure) {
-					await new Promise<void>((resolve) => {
-						wake = resolve;
-					});
-				}
-				if (failure) throw failure;
-				const item = queue.shift();
-				if (!item) return; // ended and drained
-				inflight = item;
-				try {
-					yield item.msg;
-					item.resolve();
-				} finally {
-					// Reached either normally (no-op, already resolved) or when the
-					// pump abandons iteration — a `for await` break/throw calls
-					// gen.return(), which resumes the yield as a return.
-					item.reject(new Error("prompt stream closed"));
-					inflight = null;
-				}
-			}
-		} finally {
-			// No consumer left to drain the queue, so nothing would ever settle a
-			// later push. Closing here keeps the reject-never-hang contract a
-			// property of this module rather than of every call site.
-			done = true;
-		}
-	}
+  async function* gen(): AsyncGenerator<SDKUserMessage> {
+    try {
+      while (true) {
+        while (queue.length === 0 && !done && !failure) {
+          await new Promise<void>((resolve) => {
+            wake = resolve;
+          });
+        }
+        if (failure) throw failure;
+        const item = queue.shift();
+        if (!item) return; // ended and drained
+        inflight = item;
+        try {
+          yield item.msg;
+          item.resolve();
+        } finally {
+          // Reached either normally (no-op, already resolved) or when the
+          // pump abandons iteration — a `for await` break/throw calls
+          // gen.return(), which resumes the yield as a return.
+          item.reject(new Error("prompt stream closed"));
+          inflight = null;
+        }
+      }
+    } finally {
+      // No consumer left to drain the queue, so nothing would ever settle a
+      // later push. Closing here keeps the reject-never-hang contract a
+      // property of this module rather than of every call site.
+      done = true;
+    }
+  }
 
-	return {
-		stream: gen(),
-		push: (msg) =>
-			failure || done
-				? Promise.reject(failure ?? new Error("prompt stream closed"))
-				: new Promise<void>((resolve, reject) => {
-						queue.push({ msg, resolve, reject });
-						kick();
-					}),
-		end: () => {
-			done = true;
-			kick();
-		},
-		fail: (error) => {
-			// First failure wins: the query's `finally` fails the stream a second
-			// time with a generic "query ended", which would otherwise mask the
-			// real cause its `catch` recorded.
-			if (failure) return;
-			failure = error;
-			for (const item of queue.splice(0)) item.reject(error);
-			inflight?.reject(error);
-			kick();
-		},
-	};
+  return {
+    stream: gen(),
+    push: (msg) =>
+      failure || done
+        ? Promise.reject(failure ?? new Error("prompt stream closed"))
+        : new Promise<void>((resolve, reject) => {
+            queue.push({ msg, resolve, reject });
+            kick();
+          }),
+    end: () => {
+      done = true;
+      kick();
+    },
+    fail: (error) => {
+      // First failure wins: the query's `finally` fails the stream a second
+      // time with a generic "query ended", which would otherwise mask the
+      // real cause its `catch` recorded.
+      if (failure) return;
+      failure = error;
+      for (const item of queue.splice(0)) item.reject(error);
+      inflight?.reject(error);
+      kick();
+    },
+  };
 }
 
 /** `uuid` is deliberately omitted: we need no dedup, and supplying one makes
  *  CC's stdin loop do a session lookup on the message. */
 export function userMessage(
-	content: SDKUserMessage["message"]["content"],
-	priority?: SDKUserMessage["priority"],
+  content: SDKUserMessage["message"]["content"],
+  priority?: SDKUserMessage["priority"],
 ): SDKUserMessage {
-	return {
-		type: "user",
-		message: { role: "user", content } as SDKUserMessage["message"],
-		parent_tool_use_id: null,
-		...(priority ? { priority } : {}),
-	};
+  return {
+    type: "user",
+    message: { role: "user", content } as SDKUserMessage["message"],
+    parent_tool_use_id: null,
+    ...(priority ? { priority } : {}),
+  };
 }

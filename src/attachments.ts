@@ -28,22 +28,22 @@ import { messageContentToText } from "./convert.js";
 const CONTENT_BEARING = new Set(["file"]);
 
 export type CarriedAttachment = {
-	attachment: { type: string; [key: string]: unknown };
-	/** Position of the parent among the session's text-bearing user records. */
-	userOrdinal: number;
-	/** That record's text, to verify the ordinal still points at the same turn. */
-	parentText: string;
+  attachment: { type: string; [key: string]: unknown };
+  /** Position of the parent among the session's text-bearing user records. */
+  userOrdinal: number;
+  /** That record's text, to verify the ordinal still points at the same turn. */
+  parentText: string;
 };
 
 type Rec = Record<string, unknown>;
 
 /** A user record holding a prompt, as opposed to one holding tool results. */
 function userPromptText(record: Rec): string | undefined {
-	if (record.type !== "user") return undefined;
-	const content = (record.message as Rec | undefined)?.content;
-	if (Array.isArray(content) && content.some((b) => (b as Rec)?.type === "tool_result")) return undefined;
-	const text = messageContentToText(content as never);
-	return text ? text : undefined;
+  if (record.type !== "user") return undefined;
+  const content = (record.message as Rec | undefined)?.content;
+  if (Array.isArray(content) && content.some((b) => (b as Rec)?.type === "tool_result")) return undefined;
+  const text = messageContentToText(content as never);
+  return text ? text : undefined;
 }
 
 /**
@@ -61,36 +61,36 @@ function userPromptText(record: Rec): string | undefined {
  * do with at-mentions; only their position in the conversation matters here.
  */
 export function collectCarriedAttachments(records: readonly JsonlRecord[]): CarriedAttachment[] {
-	const ordinalOf = new Map<string, number>();
-	const textOf = new Map<string, string>();
-	let ordinal = 0;
-	const carried: CarriedAttachment[] = [];
+  const ordinalOf = new Map<string, number>();
+  const textOf = new Map<string, string>();
+  let ordinal = 0;
+  const carried: CarriedAttachment[] = [];
 
-	for (const raw of records) {
-		const record = raw as Rec;
-		const prompt = userPromptText(record);
-		if (prompt !== undefined) {
-			ordinalOf.set(record.uuid as string, ordinal++);
-			textOf.set(record.uuid as string, prompt);
-			continue;
-		}
-		if (record.type !== "attachment") continue;
-		const parent = record.parentUuid as string | null;
-		// Attachments chain to each other — a run of them hangs off one prompt, and
-		// 63 of 179 in real sessions parent to another attachment rather than to a
-		// message. Inherit the ordinal so the whole run keys to the prompt that
-		// caused it. Recorded for every attachment, not just the ones carried, since
-		// a content-bearing one can chain off a `skill_listing` we ignore.
-		if (parent === null || !ordinalOf.has(parent)) continue;
-		const inherited = ordinalOf.get(parent)!;
-		ordinalOf.set(record.uuid as string, inherited);
-		textOf.set(record.uuid as string, textOf.get(parent)!);
+  for (const raw of records) {
+    const record = raw as Rec;
+    const prompt = userPromptText(record);
+    if (prompt !== undefined) {
+      ordinalOf.set(record.uuid as string, ordinal++);
+      textOf.set(record.uuid as string, prompt);
+      continue;
+    }
+    if (record.type !== "attachment") continue;
+    const parent = record.parentUuid as string | null;
+    // Attachments chain to each other — a run of them hangs off one prompt, and
+    // 63 of 179 in real sessions parent to another attachment rather than to a
+    // message. Inherit the ordinal so the whole run keys to the prompt that
+    // caused it. Recorded for every attachment, not just the ones carried, since
+    // a content-bearing one can chain off a `skill_listing` we ignore.
+    if (parent === null || !ordinalOf.has(parent)) continue;
+    const inherited = ordinalOf.get(parent)!;
+    ordinalOf.set(record.uuid as string, inherited);
+    textOf.set(record.uuid as string, textOf.get(parent)!);
 
-		const attachment = record.attachment as { type: string; [key: string]: unknown } | undefined;
-		if (!attachment || !CONTENT_BEARING.has(attachment.type)) continue;
-		carried.push({ attachment, userOrdinal: inherited, parentText: textOf.get(parent)! });
-	}
-	return carried;
+    const attachment = record.attachment as { type: string; [key: string]: unknown } | undefined;
+    if (!attachment || !CONTENT_BEARING.has(attachment.type)) continue;
+    carried.push({ attachment, userOrdinal: inherited, parentText: textOf.get(parent)! });
+  }
+  return carried;
 }
 
 /**
@@ -105,31 +105,31 @@ export function collectCarriedAttachments(records: readonly JsonlRecord[]): Carr
  * disagreement is reported and dropped rather than approximated.
  */
 export function placeCarriedAttachments(
-	carried: readonly CarriedAttachment[],
-	messages: readonly { role: string; content: unknown }[],
+  carried: readonly CarriedAttachment[],
+  messages: readonly { role: string; content: unknown }[],
 ): { attachments: ImportAttachment[]; skipped: string[] } {
-	const prompts: { index: number; text: string }[] = [];
-	messages.forEach((msg, index) => {
-		if (msg.role !== "user") return;
-		if (Array.isArray(msg.content) && msg.content.some((b) => (b as Rec)?.type === "tool_result")) return;
-		const text = messageContentToText(msg.content as never);
-		if (text) prompts.push({ index, text });
-	});
+  const prompts: { index: number; text: string }[] = [];
+  messages.forEach((msg, index) => {
+    if (msg.role !== "user") return;
+    if (Array.isArray(msg.content) && msg.content.some((b) => (b as Rec)?.type === "tool_result")) return;
+    const text = messageContentToText(msg.content as never);
+    if (text) prompts.push({ index, text });
+  });
 
-	const attachments: ImportAttachment[] = [];
-	const skipped: string[] = [];
-	for (const item of carried) {
-		const name = String(item.attachment.filename ?? item.attachment.type);
-		const candidate = prompts[item.userOrdinal];
-		if (!candidate) {
-			skipped.push(`${name}: prompt #${item.userOrdinal} is no longer in history`);
-			continue;
-		}
-		if (candidate.text !== item.parentText) {
-			skipped.push(`${name}: prompt #${item.userOrdinal} changed`);
-			continue;
-		}
-		attachments.push({ afterIndex: candidate.index, attachment: item.attachment });
-	}
-	return { attachments, skipped };
+  const attachments: ImportAttachment[] = [];
+  const skipped: string[] = [];
+  for (const item of carried) {
+    const name = String(item.attachment.filename ?? item.attachment.type);
+    const candidate = prompts[item.userOrdinal];
+    if (!candidate) {
+      skipped.push(`${name}: prompt #${item.userOrdinal} is no longer in history`);
+      continue;
+    }
+    if (candidate.text !== item.parentText) {
+      skipped.push(`${name}: prompt #${item.userOrdinal} changed`);
+      continue;
+    }
+    attachments.push({ afterIndex: candidate.index, attachment: item.attachment });
+  }
+  return { attachments, skipped };
 }

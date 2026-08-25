@@ -25,8 +25,8 @@ import { join } from "path";
 //   double-flush the prompt cache, and race CC's anti-thrashing guard (issue #8).
 //   Manual /compact inside CC still works (we never invoke it).
 export const CC_CHILD_ENV = {
-	ENABLE_CLAUDEAI_MCP_SERVERS: "0",
-	DISABLE_AUTO_COMPACT: "1",
+  ENABLE_CLAUDEAI_MCP_SERVERS: "0",
+  DISABLE_AUTO_COMPACT: "1",
 } as const;
 
 // Pi owns context files on the provider path, so Claude Code must not load its
@@ -43,29 +43,29 @@ export const CC_CHILD_ENV = {
 export const CLAUDE_MD_EXCLUDES = ["**/CLAUDE.md", "**/.claude/rules/**"];
 
 export interface Config {
-	/** Low-level Claude Agent SDK plumbing. Most users won't need these. */
-	provider?: {
-		strictMcpConfig?: boolean;
-		autoMemoryEnabled?: boolean;
-		pathToClaudeCodeExecutable?: string;
-		/** Enable Claude Code's hosted WebSearch and WebFetch tools in provider sessions.
-		 *  Server-side (Anthropic runs the search); bills against your subscription quota. */
-		webTools?: boolean;
-	};
+  /** Low-level Claude Agent SDK plumbing. Most users won't need these. */
+  provider?: {
+    strictMcpConfig?: boolean;
+    autoMemoryEnabled?: boolean;
+    pathToClaudeCodeExecutable?: string;
+    /** Enable Claude Code's hosted WebSearch and WebFetch tools in provider sessions.
+     *  Server-side (Anthropic runs the search); bills against your subscription quota. */
+    webTools?: boolean;
+  };
 }
 
 export function tryParseJson(path: string): Partial<Config> {
-	if (!existsSync(path)) return {};
-	try {
-		return JSON.parse(readFileSync(path, "utf-8"));
-	} catch (e) {
-		console.error(`claude-bridge: failed to parse ${path}: ${e}`);
-		return {};
-	}
+  if (!existsSync(path)) return {};
+  try {
+    return JSON.parse(readFileSync(path, "utf-8"));
+  } catch (e) {
+    console.error(`claude-bridge: failed to parse ${path}: ${e}`);
+    return {};
+  }
 }
 
 export function claudeCodeSettings(provider: Config["provider"] = {}): { autoMemoryEnabled: boolean } {
-	return { autoMemoryEnabled: provider.autoMemoryEnabled ?? false };
+  return { autoMemoryEnabled: provider.autoMemoryEnabled ?? false };
 }
 
 // The one place the hosted-web-tools policy lives. Claude Code's WebSearch/WebFetch
@@ -75,15 +75,15 @@ export function claudeCodeSettings(provider: Config["provider"] = {}): { autoMem
 // bill against the subscription quota, hence opt-in. Off returns an empty list so
 // the provider query starts CC with no built-in tools at all.
 export function hostedTools(provider: Config["provider"] = {}): string[] {
-	return provider.webTools ? ["WebFetch", "WebSearch"] : [];
+  return provider.webTools ? ["WebFetch", "WebSearch"] : [];
 }
 
 export function globalConfigPath(): string {
-	return join(getAgentDir(), "claude-bridge.json");
+  return join(getAgentDir(), "claude-bridge.json");
 }
 
 export function loadConfig(cwd: string): Config {
-	const global = tryParseJson(globalConfigPath());
-	const project = tryParseJson(join(cwd, CONFIG_DIR_NAME, "claude-bridge.json"));
-	return { provider: { ...global.provider, ...project.provider } };
+  const global = tryParseJson(globalConfigPath());
+  const project = tryParseJson(join(cwd, CONFIG_DIR_NAME, "claude-bridge.json"));
+  return { provider: { ...global.provider, ...project.provider } };
 }

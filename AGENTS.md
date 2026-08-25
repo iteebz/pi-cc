@@ -71,8 +71,9 @@ From this dev checkout (it has `node_modules`; the installed copy does not):
 
 - `npx tsc --noEmit` — typecheck.
 - `npm run lint` — biome lint + format check (`src`, `tests`, `diag`). `npm run
-  format` applies fixes. Config in `biome.json`: tabs, 120 columns, double quotes
-  — standardized with distil. Run lint plus the typecheck before committing.
+  format` applies fixes. Config in `biome.json`: 2-space, 120 columns, double
+  quotes, organized imports — standardized with distil (agents emit spaces by
+  default; the formatter matches rather than fights them). Run lint plus the typecheck before committing.
 - `npm run test:unit` — offline tests (`tests/unit-*.mjs`: queue, import, skills,
   sync). Always run this plus the typecheck before committing.
 - `npm test` — full suite; adds integration tests that spawn real `pi` + Claude
