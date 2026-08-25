@@ -54,7 +54,7 @@ export interface Config {
   };
 }
 
-export function tryParseJson(path: string): Partial<Config> {
+function tryParseJson(path: string): Partial<Config> {
   if (!existsSync(path)) return {};
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
@@ -78,7 +78,7 @@ export function hostedTools(provider: Config["provider"] = {}): string[] {
   return provider.webTools ? ["WebFetch", "WebSearch"] : [];
 }
 
-export function globalConfigPath(): string {
+function globalConfigPath(): string {
   return join(getAgentDir(), "claude-bridge.json");
 }
 

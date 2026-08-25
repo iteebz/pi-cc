@@ -7,7 +7,7 @@ import { MCP_TOOL_PREFIX } from "./tool-names.js";
 
 export const PROVIDER_ID = "claude-bridge";
 
-export function sanitizeToolId(id: string, cache: Map<string, string>): string {
+function sanitizeToolId(id: string, cache: Map<string, string>): string {
   const existing = cache.get(id);
   if (existing) return existing;
   const clean = id.replace(/[^a-zA-Z0-9_-]/g, "_");
@@ -28,7 +28,7 @@ export function sanitizeToolId(id: string, cache: Map<string, string>): string {
  *  the read direction refuses the same names for the same reason
  *  (piToolNameFor in index.ts).
  */
-export function mapPiToolNameToSdk(name: string, customToolNameToSdk: Map<string, string>): string {
+function mapPiToolNameToSdk(name: string, customToolNameToSdk: Map<string, string>): string {
   if (!name) return "";
   const normalized = name.toLowerCase();
   // Pi history holds pi tool names. Our own SDK prefix can only reach here by

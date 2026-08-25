@@ -5,7 +5,7 @@
 // (turn boundary).
 // Extracted from index.ts so tests can import without activating the extension.
 
-export type McpContent = Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>;
+type McpContent = Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>;
 
 export interface McpResult {
   content: McpContent;
@@ -14,7 +14,7 @@ export interface McpResult {
   [key: string]: unknown;
 }
 
-export function toolResultToMcpContent(
+function toolResultToMcpContent(
   content: string | Array<{ type: string; text?: string; data?: string; mimeType?: string }>,
 ): McpContent {
   if (typeof content === "string") return [{ type: "text", text: content || "" }];

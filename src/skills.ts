@@ -7,7 +7,7 @@ export function renderSkillsBlock(skills: Skill[]): string | undefined {
   return rewriteSkillsBlock(block);
 }
 
-export function rewriteSkillsBlock(skillsBlock: string): string {
+function rewriteSkillsBlock(skillsBlock: string): string {
   return skillsBlock.replace(
     "Use the read tool to load a skill's file",
     `Use the read tool (mcp__${MCP_SERVER_NAME}__read) to load a skill's file`,
