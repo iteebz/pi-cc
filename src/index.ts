@@ -1040,6 +1040,21 @@ function processStreamEvent(
 				partialJson: "", index: event.index,
 			});
 			c.currentPiStream!.push({ type: "toolcall_start", contentIndex: c.turnBlocks.length - 1, partial: c.turnOutput });
+		} else if (event.content_block?.type === "server_tool_use") {
+			// Hosted tool (e.g. web_search) — Anthropic executes it server-side and
+			// streams the result back as a sibling web_search_tool_result block. Not
+			// a pi tool call: no result roundtrip through pi is needed or possible.
+			// Render as a text marker so the user sees the search happening.
+			c.turnBlocks.push({ type: "text", text: "", index: event.index });
+			const name = event.content_block.name ?? "web_search";
+			c.currentPiStream!.push({ type: "text_start", contentIndex: c.turnBlocks.length - 1, partial: c.turnOutput });
+			const marker = `[web search${name !== "web_search" ? `: ${name}` : ""}]\n`;
+			c.turnBlocks[c.turnBlocks.length - 1].text = marker;
+			c.currentPiStream!.push({ type: "text_delta", contentIndex: c.turnBlocks.length - 1, delta: marker, partial: c.turnOutput });
+		} else if (typeof event.content_block?.type === "string" && event.content_block.type.endsWith("_tool_result")) {
+			// Hosted tool result block (web_search_tool_result etc.) — content stays
+			// inside CC's context; we surface nothing here, the model's answer cites it.
+			debug("processStreamEvent: hosted tool result block (not rendered)", event.content_block?.type);
 		} else {
 			debug("processStreamEvent: unhandled content_block_start type", event.content_block?.type);
 		}
@@ -1060,6 +1075,9 @@ function processStreamEvent(
 			block.partialJson += event.delta.partial_json;
 			block.arguments = parsePartialJson(block.partialJson, block.arguments);
 			c.currentPiStream!.push({ type: "toolcall_delta", contentIndex: index, delta: event.delta.partial_json, partial: c.turnOutput });
+		} else if (event.delta?.type === "input_json_delta" && block.type === "server_tool_use") {
+			// input_json_delta for a hosted tool call — execution is server-side,
+			// nothing to render per-delta.
 		} else if (event.delta?.type === "signature_delta" && block.type === "thinking") {
 			block.thinkingSignature = (block.thinkingSignature ?? "") + event.delta.signature;
 		} else {
@@ -1536,7 +1554,9 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 	const queryOptions: NonNullable<Parameters<typeof query>[0]["options"]> = {
 		cwd,
 		env: childEnv,
-		tools: [],
+		// webTools opt-in: hosted WebSearch/WebFetch run server-side and bill
+		// against the subscription quota, so they are off unless explicitly enabled.
+		tools: providerSettings.webTools ? ["WebFetch", "WebSearch"] : [],
 		permissionMode: "bypassPermissions",
 		includePartialMessages: true,
 		settings: { ...claudeCodeSettings(providerSettings), claudeMdExcludes: CLAUDE_MD_EXCLUDES },

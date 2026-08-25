@@ -16,6 +16,9 @@ export interface Config {
 		strictMcpConfig?: boolean;
 		autoMemoryEnabled?: boolean;
 		pathToClaudeCodeExecutable?: string;
+		/** Enable Claude Code's hosted WebSearch and WebFetch tools in provider sessions.
+		 *  Server-side (Anthropic runs the search); bills against your subscription quota. */
+		webTools?: boolean;
 	};
 }
 
