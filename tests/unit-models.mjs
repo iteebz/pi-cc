@@ -73,28 +73,21 @@ describe("MODELS projection", () => {
 });
 
 describe("Claude Code runtime model policy", () => {
-	it("uses measured Pro defaults", () => {
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-5", PRO), { cliModelId: "claude-opus-5[1m]", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-4-8", PRO), { cliModelId: "claude-opus-4-8[1m]", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-4-7", PRO), { cliModelId: "claude-opus-4-7", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-4-6", PRO), { cliModelId: "claude-opus-4-6", contextWindow: 200000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-sonnet-4-6", PRO), { cliModelId: "claude-sonnet-4-6", contextWindow: 200000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-haiku-4-5", PRO), { cliModelId: "claude-haiku-4-5", contextWindow: 200000 });
-	});
+	// Policy: [1m] is never requested. Every known model serves the bare id at 200K,
+	// regardless of plan or long-context settings.
+	const ALL_SETTINGS = [["pro", PRO], ["max", MAX], ["extra", EXTRA]];
+	const ALL_MODELS = ["claude-fable-5", "claude-opus-5", "claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-5", "claude-sonnet-4-6", "claude-haiku-4-5"];
 
-	it("plan max only changes Opus 4.6", () => {
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-5", MAX), { cliModelId: "claude-opus-5[1m]", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-4-8", MAX), { cliModelId: "claude-opus-4-8[1m]", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-4-7", MAX), { cliModelId: "claude-opus-4-7", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-4-6", MAX), { cliModelId: "claude-opus-4-6[1m]", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-sonnet-4-6", MAX), { cliModelId: "claude-sonnet-4-6", contextWindow: 200000 });
-	});
-
-	it("longContextExtraUsage enables metered variants but not Haiku", () => {
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-opus-4-6", EXTRA), { cliModelId: "claude-opus-4-6[1m]", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-sonnet-4-6", EXTRA), { cliModelId: "claude-sonnet-4-6[1m]", contextWindow: 1000000 });
-		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-haiku-4-5", EXTRA), { cliModelId: "claude-haiku-4-5", contextWindow: 200000 });
-	});
+	for (const [settingsName, settings] of ALL_SETTINGS) {
+		it(`never requests [1m] under ${settingsName} settings`, () => {
+			for (const id of ALL_MODELS) {
+				assert.deepEqual(
+					resolveClaudeCodeRuntimeModel(id, settings),
+					{ cliModelId: id, contextWindow: 200000 },
+				);
+			}
+		});
+	}
 
 	it("unknown model falls back to bare id at 200K", () => {
 		assert.deepEqual(resolveClaudeCodeRuntimeModel("claude-future-9-9", PRO), { cliModelId: "claude-future-9-9", contextWindow: 200000 });
@@ -104,14 +97,12 @@ describe("Claude Code runtime model policy", () => {
 describe("claudeCodeModelId", () => {
 	const models = buildModels(MODEL_IDS_IN_ORDER.map(oneM));
 
-	it("returns the measured SDK request id", () => {
-		assert.equal(claudeCodeModelId(find(models, "claude-opus-5"), PRO), "claude-opus-5[1m]");
-		assert.equal(claudeCodeModelId(find(models, "claude-opus-4-8"), PRO), "claude-opus-4-8[1m]");
-		assert.equal(claudeCodeModelId(find(models, "claude-opus-4-7"), PRO), "claude-opus-4-7");
-		assert.equal(claudeCodeModelId(find(models, "claude-opus-4-6"), PRO), "claude-opus-4-6");
-		assert.equal(claudeCodeModelId(find(models, "claude-opus-4-6"), MAX), "claude-opus-4-6[1m]");
-		assert.equal(claudeCodeModelId(find(models, "claude-sonnet-4-6"), EXTRA), "claude-sonnet-4-6[1m]");
-		assert.equal(claudeCodeModelId(find(models, "claude-haiku-4-5"), EXTRA), "claude-haiku-4-5");
+	it("returns the bare model id (no [1m]) for every model and setting", () => {
+		for (const settings of [PRO, MAX, EXTRA]) {
+			for (const m of models) {
+				assert.equal(claudeCodeModelId(m, settings), m.id);
+			}
+		}
 	});
 
 });
@@ -119,42 +110,16 @@ describe("claudeCodeModelId", () => {
 describe("applyLongContext", () => {
 	const models = buildModels(MODEL_IDS_IN_ORDER.map(oneM));
 
-	it("registers measured Pro defaults", () => {
-		const registered = applyLongContext(models, PRO);
-		assert.equal(find(registered, "claude-opus-5").contextWindow, 1000000);
-		assert.equal(find(registered, "claude-opus-4-8").contextWindow, 1000000);
-		assert.equal(find(registered, "claude-opus-4-7").contextWindow, 1000000);
-		assert.equal(find(registered, "claude-opus-4-6").contextWindow, 200000);
-		assert.equal(find(registered, "claude-sonnet-4-6").contextWindow, 200000);
-		assert.equal(find(registered, "claude-haiku-4-5").contextWindow, 200000);
+	it("registers every model at 200K with no 1M label, any setting", () => {
+		for (const settings of [PRO, MAX, EXTRA]) {
+			const registered = applyLongContext(models, settings);
+			for (const m of registered) {
+				assert.equal(m.contextWindow, 200000, `${m.id} contextWindow`);
+				assert.ok(!m.name.includes("1M"), `${m.id} name: ${m.name}`);
+			}
+		}
 		// Does not mutate the source table used for id resolution.
 		assert.equal(find(models, "claude-opus-4-6").contextWindow, 1000000);
-	});
-
-	it("registers Max-plan Opus 4.6 at 1M but leaves Sonnet at 200K", () => {
-		const registered = applyLongContext(models, MAX);
-		assert.equal(find(registered, "claude-opus-4-6").contextWindow, 1000000);
-		assert.equal(find(registered, "claude-sonnet-4-6").contextWindow, 200000);
-	});
-
-	it("registers extra-usage Opus 4.6 and Sonnet at 1M", () => {
-		const registered = applyLongContext(models, EXTRA);
-		assert.equal(find(registered, "claude-opus-4-6").contextWindow, 1000000);
-		assert.equal(find(registered, "claude-sonnet-4-6").contextWindow, 1000000);
-		assert.equal(find(registered, "claude-haiku-4-5").contextWindow, 200000);
-	});
-
-	it("labels exactly the registered 1M models", () => {
-		const pro = applyLongContext(models, PRO);
-		assert.equal(find(pro, "claude-opus-5").name, "claude-opus-5 1M");
-		assert.equal(find(pro, "claude-opus-4-8").name, "claude-opus-4-8 1M");
-		assert.equal(find(pro, "claude-opus-4-7").name, "claude-opus-4-7 1M");
-		assert.equal(find(pro, "claude-opus-4-6").name, "claude-opus-4-6");
-		assert.equal(find(pro, "claude-sonnet-4-6").name, "claude-sonnet-4-6");
-
-		const extra = applyLongContext(models, EXTRA);
-		assert.equal(find(extra, "claude-opus-4-6").name, "claude-opus-4-6 1M");
-		assert.equal(find(extra, "claude-sonnet-4-6").name, "claude-sonnet-4-6 1M");
 	});
 });
 
@@ -181,6 +146,6 @@ describe("resolveModel", () => {
 		const oneMModels = buildModels(MODEL_IDS_IN_ORDER.map(oneM));
 		const model = resolveModel(oneMModels, "opus");
 		assert.equal(model.id, "claude-opus-5");
-		assert.equal(claudeCodeModelId(model, PRO), "claude-opus-5[1m]");
+		assert.equal(claudeCodeModelId(model, PRO), "claude-opus-5");
 	});
 });

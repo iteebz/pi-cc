@@ -33,35 +33,20 @@ export type ClaudeCodeRuntimeModel = {
 };
 
 const TWO_HUNDRED_K_CONTEXT = 200_000;
-const ONE_M_CONTEXT = 1_000_000;
 
-// Measured Claude Agent SDK subscription/OAuth behavior. Do not infer this from
-// pi-ai's advertised contextWindow: bare Opus 4.7 serves 1M, bare Opus 4.8 does
-// not, and [1m] entitlement differs by model. See diag/CONTEXT-SIZE.md.
-export function resolveClaudeCodeRuntimeModel(modelId: string, settings: LongContextSettings): ClaudeCodeRuntimeModel {
+// Policy: never request [1m]. The [1m] suffix opts into 1M-context serving,
+// which costs extra on some plans and is never wanted here — always serve the
+// bare 200K variant. See diag/CONTEXT-SIZE.md for the measured SDK behavior.
+export function resolveClaudeCodeRuntimeModel(modelId: string, _settings: LongContextSettings): ClaudeCodeRuntimeModel {
 	switch (modelId) {
-		case "claude-opus-5":
-			return { cliModelId: "claude-opus-5[1m]", contextWindow: ONE_M_CONTEXT };
-		case "claude-opus-4-8":
-			return { cliModelId: "claude-opus-4-8[1m]", contextWindow: ONE_M_CONTEXT };
-		case "claude-opus-4-7":
-			return { cliModelId: "claude-opus-4-7", contextWindow: ONE_M_CONTEXT };
-		case "claude-opus-4-6": {
-			const useOneM = settings.plan === "max" || settings.longContextExtraUsage;
-			return {
-				cliModelId: useOneM ? "claude-opus-4-6[1m]" : "claude-opus-4-6",
-				contextWindow: useOneM ? ONE_M_CONTEXT : TWO_HUNDRED_K_CONTEXT,
-			};
-		}
 		case "claude-fable-5":
-			return { cliModelId: "claude-fable-5[1m]", contextWindow: ONE_M_CONTEXT };
+		case "claude-opus-5":
+		case "claude-opus-4-8":
+		case "claude-opus-4-7":
+		case "claude-opus-4-6":
 		case "claude-sonnet-5":
-			return { cliModelId: "claude-sonnet-5[1m]", contextWindow: ONE_M_CONTEXT };
 		case "claude-sonnet-4-6":
-			return {
-				cliModelId: settings.longContextExtraUsage ? "claude-sonnet-4-6[1m]" : "claude-sonnet-4-6",
-				contextWindow: settings.longContextExtraUsage ? ONE_M_CONTEXT : TWO_HUNDRED_K_CONTEXT,
-			};
+			return { cliModelId: modelId, contextWindow: TWO_HUNDRED_K_CONTEXT };
 		case "claude-haiku-4-5":
 			return { cliModelId: "claude-haiku-4-5", contextWindow: TWO_HUNDRED_K_CONTEXT };
 		default:

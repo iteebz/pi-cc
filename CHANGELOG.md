@@ -2,6 +2,7 @@
 
 ## UNRELEASED
 
+- **Change: never request [1m] variants** — `resolveClaudeCodeRuntimeModel` now always serves the bare model id at a 200K context window, for every model and every plan/long-context setting. 1M context is never wanted in this deployment; the settings flags (`plan`, `longContextExtraUsage`) no longer have any effect on the requested variant.
 - **Fix: better isolate AskClaude tool (issue #59)** — AskClaude children no longer inherit the user's `~/.claude` `CLAUDE.md` files or skill listing, and now always get Claude Code's system prompt preset instead of only when pi-side skills exist. Thanks @JAtkinsonKO.
 - **Fix: Bogus debug message about "record count mismatch" after switching providers** — the post-rebuild integrity check did not take `@file` expansion into account when switching providers.
 
