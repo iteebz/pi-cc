@@ -48,8 +48,12 @@ export function messageContentToText(
 	const parts = [];
 	let hasText = false;
 	for (const block of content) {
-		if (block.type === "text" && block.text) { parts.push(block.text); hasText = true; }
-		else if (block.type !== "text" && block.type !== "image") { parts.push(`[${block.type}]`); }
+		if (block.type === "text" && block.text) {
+			parts.push(block.text);
+			hasText = true;
+		} else if (block.type !== "text" && block.type !== "image") {
+			parts.push(`[${block.type}]`);
+		}
 	}
 	return hasText ? parts.join("\n") : "";
 }
@@ -137,7 +141,12 @@ export function convertPiMessages(
 					}
 				} else if (block.type === "toolCall") {
 					const toolName = mapPiToolNameToSdk(block.name, customToolNameToSdk);
-					blocks.push({ type: "tool_use", id: sanitizeToolId(block.id, sanitizedIds), name: toolName, input: block.arguments ?? {} });
+					blocks.push({
+						type: "tool_use",
+						id: sanitizeToolId(block.id, sanitizedIds),
+						name: toolName,
+						input: block.arguments ?? {},
+					});
 				} else {
 					dropped.other.set(block.type, (dropped.other.get(block.type) ?? 0) + 1);
 				}
@@ -157,7 +166,10 @@ export function convertPiMessages(
 			// R_Y. repairToolPairing consumes both pending ids at the first one, stubs
 			// Y there and drops the real R_Y as unmatched, destroying the parallel
 			// result this merge exists to preserve. unit-import.mjs pins the shape.
-			if (!content.length) { dropped.abortedTurns++; continue; }
+			if (!content.length) {
+				dropped.abortedTurns++;
+				continue;
+			}
 			// Blocks were present but every one was filtered — content really was
 			// dropped here, so keep the slot and say so. Empty content is rejected by
 			// the API, and dropping the message would break tool pairing.
@@ -193,14 +205,23 @@ export function convertPiMessages(
 			// reorderAttachmentsForAPI (claude-code-rip src/utils/messages.ts:1481)
 			// bubbles attachments up to the nearest assistant or tool_result message
 			// and re-inserts them after it. The on-disk form differs, the order does not.
-			const block = { type: "tool_result", tool_use_id: sanitizeToolId(msg.toolCallId, sanitizedIds), content: toolResultContent(msg.content), is_error: msg.isError };
+			const block = {
+				type: "tool_result",
+				tool_use_id: sanitizeToolId(msg.toolCallId, sanitizedIds),
+				content: toolResultContent(msg.content),
+				is_error: msg.isError,
+			};
 			if (turnResults) {
 				turnResults.content.push(block);
 			} else {
 				turnResults = { role: "user", content: [block] };
 				// A result with no assistant message before it is malformed history;
 				// appending keeps it in order for repairToolPairing to discard.
-				anthropicMessages.splice(turnAssistantIdx === null ? anthropicMessages.length : turnAssistantIdx + 1, 0, turnResults);
+				anthropicMessages.splice(
+					turnAssistantIdx === null ? anthropicMessages.length : turnAssistantIdx + 1,
+					0,
+					turnResults,
+				);
 			}
 		}
 	}

@@ -143,10 +143,10 @@ export class PromptCaptures {
 		const embedded = this.findInheritedPrompts(systemPrompt, systemPrompt);
 		if (embedded.length === 0) {
 			throw new Error(
-				`prompt-capture: no capture for this ${systemPrompt.length}-char system prompt, and it embeds none of the ${this.captures.size} known. `
-				+ `Claude Code would receive none of this turn's context files, skills or custom instructions. `
-				+ `The usual cause is an extension loaded after claude-bridge that rewrites the system prompt from before_agent_start — `
-				+ `one that wraps it is fine, one that rebuilds or strips it leaves nothing to match.`,
+				`prompt-capture: no capture for this ${systemPrompt.length}-char system prompt, and it embeds none of the ${this.captures.size} known. ` +
+					`Claude Code would receive none of this turn's context files, skills or custom instructions. ` +
+					`The usual cause is an extension loaded after claude-bridge that rewrites the system prompt from before_agent_start — ` +
+					`one that wraps it is fine, one that rebuilds or strips it leaves nothing to match.`,
 			);
 		}
 
@@ -239,7 +239,11 @@ function projectCapture(
 		);
 		const ownSkillPaths = new Set<string>();
 		const ownSkills = capture.skills.filter((skill) => {
-			if (skill.disableModelInvocation || inheritedSkillPaths.has(skill.filePath) || ownSkillPaths.has(skill.filePath)) {
+			if (
+				skill.disableModelInvocation ||
+				inheritedSkillPaths.has(skill.filePath) ||
+				ownSkillPaths.has(skill.filePath)
+			) {
 				return false;
 			}
 			ownSkillPaths.add(skill.filePath);

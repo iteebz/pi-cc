@@ -7,8 +7,9 @@
  * with a transport, then raw JSON-RPC — so the assertions cover what Claude
  * actually receives rather than an intermediate representation.
  */
-import { describe, it, before } from "node:test";
+
 import assert from "node:assert/strict";
+import { before, describe, it } from "node:test";
 import { createToolServer } from "../src/mcp-server.js";
 
 const NESTED_TOOL_SCHEMA = {
@@ -84,9 +85,15 @@ describe("MCP tool schema advertisement", () => {
 	// surface much later as pi rejecting the arguments Claude did not send.
 	it("rejects a non-object parameter schema at construction, naming the tool", () => {
 		assert.throws(
-			() => createToolServer("custom-tools", [
-				{ name: "bad_tool", description: "", inputSchema: { type: "string" }, handler: async () => ({ content: [] }) },
-			]),
+			() =>
+				createToolServer("custom-tools", [
+					{
+						name: "bad_tool",
+						description: "",
+						inputSchema: { type: "string" },
+						handler: async () => ({ content: [] }),
+					},
+				]),
 			/bad_tool: MCP tool parameters must be an object schema/,
 		);
 	});
@@ -173,7 +180,10 @@ describe("MCP tool invocation", () => {
 		await callTool("beta", "toolu_second", { x: "hi" });
 		await callTool("alpha", "toolu_first");
 
-		assert.deepStrictEqual(calls, [["beta", "toolu_second"], ["alpha", "toolu_first"]]);
+		assert.deepStrictEqual(calls, [
+			["beta", "toolu_second"],
+			["alpha", "toolu_first"],
+		]);
 	});
 
 	it("fails loudly when the tool_use id is absent rather than mispairing", async () => {

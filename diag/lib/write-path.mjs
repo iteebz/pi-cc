@@ -33,10 +33,12 @@ export function transcript(piMessages) {
 	const repaired = repairToolPairing(convertPiMessages(piMessages, new Map()).anthropicMessages);
 	const session = createSession({ projectPath: process.cwd() });
 	if (repaired.length) session.importMessages(repaired);
-	return session.records.map((r) => JSON.stringify({
-		...Object.fromEntries(Object.entries(r).filter(([k]) => !VOLATILE.has(k))),
-		message: { ...r.message, id: undefined },
-	}));
+	return session.records.map((r) =>
+		JSON.stringify({
+			...Object.fromEntries(Object.entries(r).filter(([k]) => !VOLATILE.has(k))),
+			message: { ...r.message, id: undefined },
+		}),
+	);
 }
 
 /** Prefix lengths at which every tool call issued so far has its result.

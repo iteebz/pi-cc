@@ -3,10 +3,11 @@
  * would silently start writing to the developer's real debug log instead of a
  * temp dir. That regression is otherwise invisible unless CLAUDE_BRIDGE_DEBUG=1.
  */
-import { describe, it } from "node:test";
+
 import assert from "node:assert/strict";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { describe, it } from "node:test";
 
 describe("test harness", () => {
 	it("redirects the bridge debug log away from the real one", () => {

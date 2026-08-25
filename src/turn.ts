@@ -3,8 +3,8 @@
 // One question, asked several ways: where does the history end and the prompt
 // begin? Everything here derives from `turnStart`, which is the single answer.
 
-import type { Context, ImageContent, TextContent, UserMessage } from "@earendil-works/pi-ai";
 import type { Base64ImageSource, ContentBlockParam } from "@anthropic-ai/sdk/resources";
+import type { Context, ImageContent, TextContent, UserMessage } from "@earendil-works/pi-ai";
 import { messageContentToText } from "./convert.js";
 import { debug } from "./debug.js";
 import { extractAllToolResults as _extractAllToolResults, type McpResult } from "./extract-tool-results.js";
@@ -45,9 +45,8 @@ export function extractUserPromptBlocks(messages: Context["messages"]): ContentB
 	let hasImage = false;
 	const blocks: ContentBlockParam[] = [];
 	for (const message of turn) {
-		const content: (TextContent | ImageContent)[] = typeof message.content === "string"
-			? [{ type: "text", text: message.content }]
-			: message.content;
+		const content: (TextContent | ImageContent)[] =
+			typeof message.content === "string" ? [{ type: "text", text: message.content }] : message.content;
 		// Off-type content violates UserMessage's contract, so fail rather than
 		// degrade — but name the shape, since the cause is almost always another
 		// extension appending a malformed message, not this file.
@@ -80,7 +79,9 @@ export function extractUserPromptBlocks(messages: Context["messages"]): ContentB
 			}
 		}
 	}
-	debug(`extractUserPromptBlocks: ${turn.length} msgs in turn, ${blocks.length} blocks, types=${blocks.map((b) => b.type).join(",")}`);
+	debug(
+		`extractUserPromptBlocks: ${turn.length} msgs in turn, ${blocks.length} blocks, types=${blocks.map((b) => b.type).join(",")}`,
+	);
 	return hasImage ? blocks : null;
 }
 
@@ -97,11 +98,18 @@ export function steerBlocks(messages: Context["messages"]): ContentBlockParam[] 
 // the provider again. Thin wrapper over extract-tool-results.js that adds per-turn
 // debug logging at the extraction boundary.
 export function extractAllToolResults(context: Context): McpResult[] {
-	const { results, stopIdx } = _extractAllToolResults(context.messages as unknown as Array<{ role: string; [key: string]: unknown }>);
-	debug(`extractAllToolResults: ${results.length} results from ${context.messages.length} msgs, stopped at index ${stopIdx}`);
+	const { results, stopIdx } = _extractAllToolResults(
+		context.messages as unknown as Array<{ role: string; [key: string]: unknown }>,
+	);
+	debug(
+		`extractAllToolResults: ${results.length} results from ${context.messages.length} msgs, stopped at index ${stopIdx}`,
+	);
 	debug(`extractAllToolResults: all msg roles:`, context.messages.map((m, i) => `[${i}]${m.role}`).join(" "));
 	for (let r = 0; r < results.length; r++) {
-		debug(`extractAllToolResults: result[${r}] id=${results[r].toolCallId}${results[r].isError ? " ERROR" : ""} preview:`, JSON.stringify(results[r].content).slice(0, 150));
+		debug(
+			`extractAllToolResults: result[${r}] id=${results[r].toolCallId}${results[r].isError ? " ERROR" : ""} preview:`,
+			JSON.stringify(results[r].content).slice(0, 150),
+		);
 	}
 	return results;
 }

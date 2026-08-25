@@ -6,7 +6,7 @@
 
 import type { Context } from "@earendil-works/pi-ai";
 import { createSession, deleteSession, openSession, repairToolPairing } from "cc-session-io";
-import { collectCarriedAttachments, placeCarriedAttachments, type CarriedAttachment } from "./attachments.js";
+import { type CarriedAttachment, collectCarriedAttachments, placeCarriedAttachments } from "./attachments.js";
 import { convertPiMessages } from "./convert.js";
 import { DEBUG, DEBUG_LOG_PATH, debug, debugSessionPaths, diagDump, safeRealpath } from "./debug.js";
 import { verifyWrittenSession as _verifyWrittenSession } from "./session-verify.js";
@@ -103,12 +103,17 @@ function convertAndImportMessages(
 	const { anthropicMessages, sanitizedIds, dropped } = convertPiMessages(messages, customToolNameToSdk);
 
 	debug(`convertAndImportMessages: ${messages.length} pi msgs → ${anthropicMessages.length} anthropic msgs`);
-	debug(`convertAndImportMessages: imported roles:`, anthropicMessages.map((m, i) => {
-		const c = m.content;
-		if (typeof c === "string") return `[${i}]${m.role}:text`;
-		if (Array.isArray(c)) return `[${i}]${m.role}:${(c).map((b) => b.type).join("+")}`;
-		return `[${i}]${m.role}:?`;
-	}).join(" "));
+	debug(
+		`convertAndImportMessages: imported roles:`,
+		anthropicMessages
+			.map((m, i) => {
+				const c = m.content;
+				if (typeof c === "string") return `[${i}]${m.role}:text`;
+				if (Array.isArray(c)) return `[${i}]${m.role}:${c.map((b) => b.type).join("+")}`;
+				return `[${i}]${m.role}:?`;
+			})
+			.join(" "),
+	);
 	// The roles line shows only survivors, where a stripped block looks like one
 	// that never existed. Name the losses.
 	const droppedParts = [
@@ -120,8 +125,10 @@ function convertAndImportMessages(
 		debug(`convertAndImportMessages: dropped ${droppedParts.join(", ")}`);
 	}
 	if (sanitizedIds.size > 0) {
-		debug(`convertAndImportMessages: sanitized ${sanitizedIds.size} tool IDs:`,
-			[...sanitizedIds.entries()].map(([orig, clean]) => orig === clean ? orig : `${orig}→${clean}`).join(", "));
+		debug(
+			`convertAndImportMessages: sanitized ${sanitizedIds.size} tool IDs:`,
+			[...sanitizedIds.entries()].map(([orig, clean]) => (orig === clean ? orig : `${orig}→${clean}`)).join(", "),
+		);
 	}
 	// Pre-repair for debug logging; importMessages also repairs internally (idempotent).
 	const repaired = repairToolPairing(anthropicMessages);
@@ -134,7 +141,9 @@ function convertAndImportMessages(
 		? placeCarriedAttachments(carried, repaired as unknown as { role: string; content: unknown }[])
 		: undefined;
 	if (placed?.skipped.length) {
-		debug(`convertAndImportMessages: dropped ${placed.skipped.length} carried attachment(s): ${placed.skipped.join("; ")}`);
+		debug(
+			`convertAndImportMessages: dropped ${placed.skipped.length} carried attachment(s): ${placed.skipped.join("; ")}`,
+		);
 	}
 	if (placed?.attachments.length) {
 		debug(`convertAndImportMessages: carrying ${placed.attachments.length} attachment(s) across the rebuild`);
@@ -158,11 +167,17 @@ function verifyWrittenSession(
 		debug(`WARNING session verify: ${msg}`);
 		notify(
 			`Session file issue: ${msg}\n` +
-			`cwd=${cwd} realpath=${safeRealpath(cwd)} CLAUDE_CONFIG_DIR=${process.env.CLAUDE_CONFIG_DIR ?? "(unset)"}\n` +
-			(DEBUG ? `Debug log: ${DEBUG_LOG_PATH}` : `Rerun with CLAUDE_BRIDGE_DEBUG=1 to capture a debug log.`),
+				`cwd=${cwd} realpath=${safeRealpath(cwd)} CLAUDE_CONFIG_DIR=${process.env.CLAUDE_CONFIG_DIR ?? "(unset)"}\n` +
+				(DEBUG ? `Debug log: ${DEBUG_LOG_PATH}` : `Rerun with CLAUDE_BRIDGE_DEBUG=1 to capture a debug log.`),
 			"warning",
 		);
-		diagDump("session_verify_fail", { msg, jsonlPath, cwd, realpath: safeRealpath(cwd), claudeConfigDir: process.env.CLAUDE_CONFIG_DIR ?? null });
+		diagDump("session_verify_fail", {
+			msg,
+			jsonlPath,
+			cwd,
+			realpath: safeRealpath(cwd),
+			claudeConfigDir: process.env.CLAUDE_CONFIG_DIR ?? null,
+		});
 	}
 }
 
@@ -197,13 +212,14 @@ export function syncSharedSession(
 	// an unrelated longer CC session (issue #25).
 	if (sharedSession && !sharedSession.needsRebuild && priorMessages.length >= sharedSession.cursor) {
 		const missed = priorMessages.slice(sharedSession.cursor);
-		const trailingAssistantOnly =
-			missed.length === 1 && (missed[0] as { role?: string }).role === "assistant";
+		const trailingAssistantOnly = missed.length === 1 && (missed[0] as { role?: string }).role === "assistant";
 		if (missed.length === 0 || trailingAssistantOnly) {
 			if (trailingAssistantOnly) {
 				sharedSession = { ...sharedSession, cursor: priorMessages.length, cwd };
 			}
-			debug(`Case 3: ${trailingAssistantOnly ? "advanced cursor past trailing assistant, " : ""}resuming session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`);
+			debug(
+				`Case 3: ${trailingAssistantOnly ? "advanced cursor past trailing assistant, " : ""}resuming session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`,
+			);
 			debug(`syncResult: path=reuse sessionId=${sharedSession.sessionId} cursor=${sharedSession.cursor}`);
 			return { sessionId: sharedSession.sessionId };
 		}
@@ -213,8 +229,12 @@ export function syncSharedSession(
 	// deleted when its query completes. Remove this branch and a subagent resumes,
 	// then overwrites, the parent's session.
 	if (sharedSession && !sharedSession.needsRebuild && priorMessages.length < sharedSession.cursor) {
-		debug(`Case 1 synthetic: clean start for shorter context, preserving shared session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`);
-		debug(`syncResult: path=clean-start preserve-shared sessionId=${sharedSession.sessionId} cursor=${sharedSession.cursor}`);
+		debug(
+			`Case 1 synthetic: clean start for shorter context, preserving shared session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`,
+		);
+		debug(
+			`syncResult: path=clean-start preserve-shared sessionId=${sharedSession.sessionId} cursor=${sharedSession.cursor}`,
+		);
 		return { sessionId: null, preserveSharedSession: true };
 	}
 
@@ -247,15 +267,23 @@ export function syncSharedSession(
 	verifyWrittenSession(session.jsonlPath, session.sessionId, session.records.length, cwd);
 	sharedSession = { sessionId: session.sessionId, cursor: priorMessages.length, cwd };
 	if (previousSessionId === undefined) {
-		debug(`Case 2: first turn with ${priorMessages.length} prior messages → session ${session.sessionId.slice(0, 8)}, ${session.records.length} records`);
+		debug(
+			`Case 2: first turn with ${priorMessages.length} prior messages → session ${session.sessionId.slice(0, 8)}, ${session.records.length} records`,
+		);
 	} else if (preserveId) {
 		const missedCount = priorMessages.length - previousCursor;
-		debug(`Case 4: ${missedCount} missed messages, ${priorMessages.length} total → rewrote session ${session.sessionId.slice(0, 8)} (same id), ${session.records.length} records`);
+		debug(
+			`Case 4: ${missedCount} missed messages, ${priorMessages.length} total → rewrote session ${session.sessionId.slice(0, 8)} (same id), ${session.records.length} records`,
+		);
 	} else {
-		debug(`Case 4 post-abort: ${priorMessages.length} total → new session ${session.sessionId.slice(0, 8)} (was ${previousSessionId.slice(0, 8)}, rotated to avoid race with orphan writer), ${session.records.length} records`);
+		debug(
+			`Case 4 post-abort: ${priorMessages.length} total → new session ${session.sessionId.slice(0, 8)} (was ${previousSessionId.slice(0, 8)}, rotated to avoid race with orphan writer), ${session.records.length} records`,
+		);
 	}
 	debugSessionPaths(`${session.sessionId.slice(0, 8)}`, cwd, session.jsonlPath);
-	debug(`syncResult: path=rebuild sessionId=${session.sessionId} priors=${priorMessages.length} ${previousSessionId === undefined ? "first" : preserveId ? "preserved" : "rotated-post-abort"}`);
+	debug(
+		`syncResult: path=rebuild sessionId=${session.sessionId} priors=${priorMessages.length} ${previousSessionId === undefined ? "first" : preserveId ? "preserved" : "rotated-post-abort"}`,
+	);
 	return { sessionId: session.sessionId };
 }
 
@@ -263,7 +291,11 @@ export function syncSharedSession(
 export function discardEphemeralSession(capturedSessionId: string | undefined, cwd: string): void {
 	if (capturedSessionId && capturedSessionId !== sharedSession?.sessionId) {
 		deleteSession(capturedSessionId, cwd, process.env.CLAUDE_CONFIG_DIR);
-		debug(`provider: query done, deleted ephemeral session ${capturedSessionId.slice(0, 8)} to preserve shared session`);
+		debug(
+			`provider: query done, deleted ephemeral session ${capturedSessionId.slice(0, 8)} to preserve shared session`,
+		);
 	}
-	debug(`provider: query done, ignoring captured session ${capturedSessionId?.slice(0, 8) ?? "none"} to preserve shared session`);
+	debug(
+		`provider: query done, ignoring captured session ${capturedSessionId?.slice(0, 8) ?? "none"} to preserve shared session`,
+	);
 }

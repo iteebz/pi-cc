@@ -3,8 +3,9 @@
  * Exercises turn-state reset behavior using the real module — no API calls,
  * no extension activation.
  */
-import { describe, it, beforeEach } from "node:test";
+
 import assert from "node:assert/strict";
+import { beforeEach, describe, it } from "node:test";
 import { ctx, resetCtx } from "../src/query-state.js";
 
 const fakeModel = { api: "anthropic", provider: "anthropic", id: "test-model" };

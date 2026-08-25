@@ -22,9 +22,12 @@ const TIMEOUT = 180_000;
 const BRIDGE_MODEL = "claude-bridge/claude-haiku-4-5";
 
 const testAgentDir = mkdtempSync(join(tmpdir(), "session-compact-agent-"));
-writeFileSync(join(testAgentDir, "settings.json"), JSON.stringify({
-	compaction: { keepRecentTokens: 50 },
-}));
+writeFileSync(
+	join(testAgentDir, "settings.json"),
+	JSON.stringify({
+		compaction: { keepRecentTokens: 50 },
+	}),
+);
 
 const harness = createRpcHarness({
 	name: "session-compact",
@@ -40,7 +43,9 @@ await startAndWait();
 try {
 	// A few substantive turns so pi has something to compact.
 	console.log("Turn 1: seed history...");
-	await promptAndWait("Pick a number between 1 and 100 and remember it. Reply with just the number. Do not use the memory system.");
+	await promptAndWait(
+		"Pick a number between 1 and 100 and remember it. Reply with just the number. Do not use the memory system.",
+	);
 	console.log("Turn 2: more history...");
 	await promptAndWait("Now pick a color. Reply with just the color. Do not use the memory system.");
 	console.log("Turn 3: more history...");
@@ -65,8 +70,9 @@ try {
 	const preEventLog = fullLog.slice(0, compactIdx);
 	const postEventLog = fullLog.slice(compactIdx);
 
-	const preCompactSessionIds = [...preEventLog.matchAll(/syncResult: path=(?:reuse|rebuild) sessionId=([a-f0-9-]+)/g)]
-		.map((m) => m[1]);
+	const preCompactSessionIds = [
+		...preEventLog.matchAll(/syncResult: path=(?:reuse|rebuild) sessionId=([a-f0-9-]+)/g),
+	].map((m) => m[1]);
 	const preCompactSessionId = preCompactSessionIds.at(-1);
 	if (!preCompactSessionId) {
 		throw new Error("no pre-compact shared sessionId found in debug log");
@@ -74,8 +80,11 @@ try {
 	console.log(`  Pre-compact sessionId: ${preCompactSessionId}`);
 
 	// Capture both the path and the rebuild flavor (preserved | rotated-post-abort | first).
-	const syncResults = [...postEventLog.matchAll(/syncResult: path=(reuse|rebuild|clean-start)(?: sessionId=([a-f0-9-]+) priors=\d+ (\S+))?/g)]
-		.map((m) => ({ path: m[1], sessionId: m[2], flavor: m[3] }));
+	const syncResults = [
+		...postEventLog.matchAll(
+			/syncResult: path=(reuse|rebuild|clean-start)(?: sessionId=([a-f0-9-]+) priors=\d+ (\S+))?/g,
+		),
+	].map((m) => ({ path: m[1], sessionId: m[2], flavor: m[3] }));
 	console.log(`  Post-event syncResults: ${JSON.stringify(syncResults)}`);
 
 	if (syncResults.length === 0) {
@@ -89,13 +98,15 @@ try {
 	if (first.path === "clean-start") {
 		throw new Error(
 			"first syncResult after session_compact was clean-start. The compact summarization " +
-			"call landed after the event marker, so this test cannot verify Turn 4's rebuild.");
+				"call landed after the event marker, so this test cannot verify Turn 4's rebuild.",
+		);
 	}
 	if (first.path === "reuse") {
 		throw new Error(
 			"bridge took REUSE path after session_compact — CC will resume the pre-compact session. " +
-			"Expected REBUILD (or clean-start) so CC sees the post-compact history. " +
-			"Symptom: triggers Claude Code's autocompact-thrashing (issue #8) on long sessions.");
+				"Expected REBUILD (or clean-start) so CC sees the post-compact history. " +
+				"Symptom: triggers Claude Code's autocompact-thrashing (issue #8) on long sessions.",
+		);
 	}
 
 	// Compact has no concurrent CC writer, so the rebuild should preserve
@@ -106,15 +117,17 @@ try {
 	if (first.path === "rebuild" && first.flavor !== "preserved") {
 		throw new Error(
 			`post-compact rebuild used flavor=${first.flavor}, expected "preserved". ` +
-			`Compact has no concurrent CC writer — it should rebuild in place (deleteSession + ` +
-			`createSession with the same UUID), not rotate. Rotating leaks orphan JSONL files.`);
+				`Compact has no concurrent CC writer — it should rebuild in place (deleteSession + ` +
+				`createSession with the same UUID), not rotate. Rotating leaks orphan JSONL files.`,
+		);
 	}
 	if (first.path === "rebuild" && first.sessionId !== preCompactSessionId) {
 		throw new Error(
 			`post-compact rebuild preserved sessionId=${first.sessionId}, but expected the original ` +
-			`pre-compact sessionId=${preCompactSessionId}. This means the compact summarization ` +
-			`session replaced sharedSession before the session_compact handler ran, orphaning the ` +
-			`main pre-compact JSONL.`);
+				`pre-compact sessionId=${preCompactSessionId}. This means the compact summarization ` +
+				`session replaced sharedSession before the session_compact handler ran, orphaning the ` +
+				`main pre-compact JSONL.`,
+		);
 	}
 
 	console.log("PASS");

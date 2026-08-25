@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // A pi shutdown has to take the Claude Code subprocess with it.
 //
 // The SDK spawns `claude` with plain pipes and no parent-death watchdog. CC does
@@ -13,17 +14,21 @@
 // regresses and the pi-side logs simply stop, so the assertion is on the process
 // table.
 
-import { test } from "node:test";
 import assert from "node:assert";
 import { execFileSync } from "node:child_process";
 import { basename } from "node:path";
+import { test } from "node:test";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
 const BRIDGE_MODEL = "claude-bridge/claude-haiku-4-5";
 
 function children(pid) {
 	try {
-		return execFileSync("pgrep", ["-P", String(pid)], { encoding: "utf8" }).trim().split("\n").filter(Boolean).map(Number);
+		return execFileSync("pgrep", ["-P", String(pid)], { encoding: "utf8" })
+			.trim()
+			.split("\n")
+			.filter(Boolean)
+			.map(Number);
 	} catch {
 		return []; // pgrep exits 1 when there are none
 	}
@@ -50,7 +55,14 @@ function claudeDescendants(pid) {
 	return found;
 }
 
-const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+const alive = (pid) => {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch {
+		return false;
+	}
+};
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 test("abort with a tool call in flight kills the Claude Code subprocess", { timeout: 120_000 }, async () => {
@@ -81,9 +93,17 @@ test("abort with a tool call in flight kills the Claude Code subprocess", { time
 		while (Date.now() < deadline && cc.some((p) => alive(p.pid))) await sleep(200);
 
 		const survivors = cc.filter((p) => alive(p.pid));
-		assert.deepEqual(survivors.map((p) => `${p.pid} ${p.command}`), [], "Claude Code outlived the aborted query");
+		assert.deepEqual(
+			survivors.map((p) => `${p.pid} ${p.command}`),
+			[],
+			"Claude Code outlived the aborted query",
+		);
 	} finally {
-		for (const p of cc) { try { process.kill(p.pid, "SIGKILL"); } catch {} }
+		for (const p of cc) {
+			try {
+				process.kill(p.pid, "SIGKILL");
+			} catch {}
+		}
 		await harness.stop();
 	}
 });
@@ -114,10 +134,18 @@ test("pi shutdown with a tool call in flight kills the Claude Code subprocess", 
 		while (Date.now() < deadline && cc.some((p) => alive(p.pid))) await sleep(200);
 
 		const survivors = cc.filter((p) => alive(p.pid));
-		assert.deepEqual(survivors.map((p) => `${p.pid} ${p.command}`), [], "Claude Code outlived pi");
+		assert.deepEqual(
+			survivors.map((p) => `${p.pid} ${p.command}`),
+			[],
+			"Claude Code outlived pi",
+		);
 	} finally {
 		// Leaving a survivor behind is the very failure under test, and it bills
 		// API requests until something stops it.
-		for (const p of cc) { try { process.kill(p.pid, "SIGKILL"); } catch {} }
+		for (const p of cc) {
+			try {
+				process.kill(p.pid, "SIGKILL");
+			} catch {}
+		}
 	}
 });

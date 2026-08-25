@@ -14,7 +14,9 @@
     "test:unit": "node --import tsx --import ./tests/lib/setup.mjs --test tests/unit-*.mjs",
     "test": "set -a && [ -f .env.test ] && . .env.test; set +a && npm run test:unit && tests/int-smoke.sh && tests/int-multi-turn.sh && tests/int-cache.sh && node --import tsx --test tests/int-*.mjs",
     "test:usage": "tests/usage-test.sh",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src tests diag",
+    "format": "biome check --write src tests diag"
   },
   "type": "module",
   "dependencies": {
@@ -31,6 +33,7 @@
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.73.0",
+    "@biomejs/biome": "^2.5.10",
     "@earendil-works/pi-ai": "^0.83.0",
     "@earendil-works/pi-coding-agent": "^0.83.0",
     "@earendil-works/pi-tui": "^0.83.0",

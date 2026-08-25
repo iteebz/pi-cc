@@ -1,10 +1,16 @@
 #!/usr/bin/env node
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { collectPromptSkills, formatProjectContext, projectPromptCapture, PromptCaptures } from "../src/prompt-capture.js";
+import { describe, it } from "node:test";
+import {
+	collectPromptSkills,
+	formatProjectContext,
+	PromptCaptures,
+	projectPromptCapture,
+} from "../src/prompt-capture.js";
 
-const PI_HARNESS = "You are an expert coding assistant operating inside pi. Pi documentation: pi packages (docs/packages.md).";
+const PI_HARNESS =
+	"You are an expert coding assistant operating inside pi. Pi documentation: pi packages (docs/packages.md).";
 const PARENT_KEY = `${PI_HARNESS}\n\n<project_context>raw parent context</project_context>\nCurrent working directory: /parent`;
 const CHILD_SUFFIX = `\n\n<sub_agent_context>child rules</sub_agent_context>\n\n<active_agent name="Plan"/>\n\n# Environment\nWorking directory: /child\n\n<agent_instructions>plan carefully</agent_instructions>`;
 const CHILD_KEY = `${PARENT_KEY}${CHILD_SUFFIX}\nCurrent working directory: /child`;
@@ -48,10 +54,13 @@ describe("PromptCaptures", () => {
 
 	it("derives a transient capture when a later extension wrapped the prompt", () => {
 		const captures = new PromptCaptures();
-		captures.record(PARENT_KEY, capture({
-			contextFiles: [{ path: "/AGENTS.md", content: "parent rules" }],
-			skills: [skill("browser")],
-		}));
+		captures.record(
+			PARENT_KEY,
+			capture({
+				contextFiles: [{ path: "/AGENTS.md", content: "parent rules" }],
+				skills: [skill("browser")],
+			}),
+		);
 
 		// What an extension loading after the bridge produces: our recorded prompt,
 		// wrapped in text we never saw.
@@ -117,10 +126,13 @@ describe("PromptCaptures", () => {
 	it("recursively projects an inherited prompt without Pi's harness", () => {
 		const browser = skill("browser");
 		const captures = new PromptCaptures();
-		captures.record(PARENT_KEY, capture({
-			contextFiles: [{ path: "/AGENTS.md", content: "parent rules" }],
-			skills: [browser],
-		}));
+		captures.record(
+			PARENT_KEY,
+			capture({
+				contextFiles: [{ path: "/AGENTS.md", content: "parent rules" }],
+				skills: [browser],
+			}),
+		);
 		captures.record(CHILD_KEY, capture({ custom: `${PARENT_KEY}${CHILD_SUFFIX}`, skills: [browser] }));
 
 		const parent = project(captures, PARENT_KEY);
@@ -137,10 +149,10 @@ describe("PromptCaptures", () => {
 	it("leaves direct custom and replace-mode prompts byte-identical", () => {
 		const captures = new PromptCaptures();
 		captures.record("direct assembled", capture({ custom: "  direct user instructions\n" }));
-		captures.record("replace assembled", capture({ custom: "<active_agent name=\"review\"/>\nreplace instructions" }));
+		captures.record("replace assembled", capture({ custom: '<active_agent name="review"/>\nreplace instructions' }));
 
 		assert.equal(project(captures, "direct assembled"), "  direct user instructions\n");
-		assert.equal(project(captures, "replace assembled"), "<active_agent name=\"review\"/>\nreplace instructions");
+		assert.equal(project(captures, "replace assembled"), '<active_agent name="review"/>\nreplace instructions');
 	});
 
 	it("uses the longest inherited key for nested agents", () => {
@@ -152,7 +164,10 @@ describe("PromptCaptures", () => {
 		captures.record(grandKey, capture({ custom: `${CHILD_KEY}${grandSuffix}` }));
 
 		const grandchild = project(captures, grandKey);
-		assert.doesNotMatch(grandchild, /operating inside pi|Current working directory: \/parent|Current working directory: \/child/);
+		assert.doesNotMatch(
+			grandchild,
+			/operating inside pi|Current working directory: \/parent|Current working directory: \/child/,
+		);
 		assert.equal(occurrences(grandchild, "parent rules"), 1);
 		assert.match(grandchild, /child rules/);
 		assert.match(grandchild, /grandchild rules/);
@@ -214,7 +229,10 @@ describe("PromptCaptures", () => {
 		captures.record(CHILD_KEY, capture({ custom: `${PARENT_KEY}${CHILD_SUFFIX}`, skills: [browser, review] }));
 
 		const childCapture = captures.resolve(CHILD_KEY);
-		assert.deepEqual(collectPromptSkills(childCapture).map(({ name }) => name), ["browser", "review"]);
+		assert.deepEqual(
+			collectPromptSkills(childCapture).map(({ name }) => name),
+			["browser", "review"],
+		);
 		const result = projectPromptCapture(childCapture);
 		assert.equal(occurrences(result, "/skills/browser/SKILL.md"), 1);
 		assert.equal(occurrences(result, "/skills/review/SKILL.md"), 1);

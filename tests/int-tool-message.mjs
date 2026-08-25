@@ -1,11 +1,12 @@
 #!/usr/bin/env node
+
 // Integration tests for tool execution + message interaction scenarios.
 // Uses pi in RPC mode with the bridge + SlowTool test extension.
 // Exercises how the bridge handles messages arriving during tool execution.
 
-import { describe, it, before, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import { after, afterEach, before, describe, it } from "node:test";
 import { getProjectDir } from "cc-session-io";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
@@ -18,7 +19,18 @@ const harness = createRpcHarness({
 });
 
 describe("tool-message integration", () => {
-	const { startAndWait, stop, send, addListener, waitForEvent, waitForMatch, collectText, promptAndWait, DEBUG_LOG, RPC_LOG } = harness;
+	const {
+		startAndWait,
+		stop,
+		send,
+		addListener,
+		waitForEvent,
+		waitForMatch,
+		collectText,
+		promptAndWait,
+		DEBUG_LOG,
+		RPC_LOG,
+	} = harness;
 
 	// The debug log accumulates across tests in this file (one pi process), so
 	// scope assertions to the bytes a single test wrote.
@@ -39,7 +51,10 @@ describe("tool-message integration", () => {
 
 	/** CC's session transcript as parsed JSONL records, in write order. */
 	function readSessionRecords(path) {
-		return readFileSync(path, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
+		return readFileSync(path, "utf8")
+			.split("\n")
+			.filter(Boolean)
+			.map((line) => JSON.parse(line));
 	}
 
 	// --- Lifecycle ---
@@ -64,7 +79,7 @@ describe("tool-message integration", () => {
 
 	it("tool call completes normally", { timeout: TEST_TIMEOUT }, async () => {
 		const text = await promptAndWait(
-			"Call SlowTool with seconds=1. Then repeat exactly what it returned, nothing else."
+			"Call SlowTool with seconds=1. Then repeat exactly what it returned, nothing else.",
 		);
 		assert.match(text.toLowerCase(), /slowtool completed/);
 	});
@@ -117,7 +132,8 @@ describe("tool-message integration", () => {
 		await waitForEvent("tool_execution_start");
 		await send({
 			type: "prompt",
-			message: "This is a steer during parallel tool execution. IMPORTANT: also say the exact word 'PAPAYA' on its own line in your response.",
+			message:
+				"This is a steer during parallel tool execution. IMPORTANT: also say the exact word 'PAPAYA' on its own line in your response.",
 			streamingBehavior: "steer",
 		});
 		await waitForEvent("agent_end");
@@ -129,7 +145,11 @@ describe("tool-message integration", () => {
 		// Pi injects drained steers between tool results too (see extract-tool-results),
 		// and in that shape the steer would be dropped and the cursor advanced past it,
 		// so Claude never sees it. Asserting results survive does not catch that.
-		assert.match(text.toLowerCase(), /papaya/, `Steer during parallel tools not visible to assistant: ${text.slice(0, 300)}`);
+		assert.match(
+			text.toLowerCase(),
+			/papaya/,
+			`Steer during parallel tools not visible to assistant: ${text.slice(0, 300)}`,
+		);
 	});
 
 	it("steer during text response (no tool call) completes both turns", { timeout: TEST_TIMEOUT }, async () => {
@@ -140,7 +160,8 @@ describe("tool-message integration", () => {
 		const collector = collectText();
 		await send({
 			type: "prompt",
-			message: "Write exactly 12 short numbered sentences about the history of computing, from Babbage to modern times. Do NOT call any tools.",
+			message:
+				"Write exactly 12 short numbered sentences about the history of computing, from Babbage to modern times. Do NOT call any tools.",
 		});
 		// Wait until text is actually streaming before injecting the steer
 		await waitForMatch(
@@ -195,11 +216,14 @@ describe("tool-message integration", () => {
 		const mark = logMark();
 		const steerText = "STOP. Do not call SlowTool again. Reply with only the word BANANA.";
 		let toolStarts = 0;
-		const removeCounter = addListener((msg) => { if (msg.type === "tool_execution_start") toolStarts++; });
+		const removeCounter = addListener((msg) => {
+			if (msg.type === "tool_execution_start") toolStarts++;
+		});
 
 		await send({
 			type: "prompt",
-			message: "Call SlowTool with seconds=1 exactly 12 times, strictly one at a time — wait for each result before starting the next. Do not call it twice in the same message.",
+			message:
+				"Call SlowTool with seconds=1 exactly 12 times, strictly one at a time — wait for each result before starting the next. Do not call it twice in the same message.",
 		});
 		await waitForEvent("tool_execution_start");
 		await send({ type: "prompt", message: steerText, streamingBehavior: "steer" });
@@ -207,18 +231,27 @@ describe("tool-message integration", () => {
 		removeCounter();
 
 		const records = readSessionRecords(sessionIdFrom(logSince(mark)));
-		const steerAt = records.findIndex((r) => r.attachment?.type === "queued_command"
-			&& JSON.stringify(r.attachment.prompt ?? "").includes("Do not call SlowTool again"));
+		const steerAt = records.findIndex(
+			(r) =>
+				r.attachment?.type === "queued_command" &&
+				JSON.stringify(r.attachment.prompt ?? "").includes("Do not call SlowTool again"),
+		);
 		assert.notEqual(steerAt, -1, "steer never reached CC as a queued command — it was replayed as a follow-up");
 
-		const toolResultAt = records.findLastIndex((r, i) => i < steerAt
-			&& JSON.stringify(r.message?.content ?? "").includes('"tool_result"'));
+		const toolResultAt = records.findLastIndex(
+			(r, i) => i < steerAt && JSON.stringify(r.message?.content ?? "").includes('"tool_result"'),
+		);
 		assert.notEqual(toolResultAt, -1, "no tool result before the steer — test did not reach a tool boundary");
 		const between = records.slice(toolResultAt + 1, steerAt).filter((r) => r.type === "assistant");
-		assert.equal(between.length, 0,
-			`steer was drained after the turn continued (${between.length} assistant message(s) between tool result and steer) — it lost the stdin race`);
-		assert.ok(records.slice(steerAt).some((r) => r.type === "assistant"),
-			"CC never responded after draining the steer");
+		assert.equal(
+			between.length,
+			0,
+			`steer was drained after the turn continued (${between.length} assistant message(s) between tool result and steer) — it lost the stdin race`,
+		);
+		assert.ok(
+			records.slice(steerAt).some((r) => r.type === "assistant"),
+			"CC never responded after draining the steer",
+		);
 
 		// Corroborating, not proof: the model should abandon its 12-call loop.
 		assert.ok(toolStarts <= 6, `${toolStarts} of 12 tool calls ran before Claude acted on the steer`);
@@ -259,7 +292,11 @@ describe("tool-message integration", () => {
 		const log = logSince(mark);
 
 		assert.match(text.toLowerCase(), /kiwi/);
-		assert.doesNotMatch(log, /steer written to CC stdin/, "text-only steer was pushed into the active query's input stream");
+		assert.doesNotMatch(
+			log,
+			/steer written to CC stdin/,
+			"text-only steer was pushed into the active query's input stream",
+		);
 		assert.doesNotMatch(log, /steer push rejected/, "text-only steer reached the push path at all");
 	});
 

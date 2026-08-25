@@ -7,8 +7,9 @@
  * The ack contract only holds against that shape, so the tests exercise it
  * rather than a bare `for await`.
  */
-import { describe, it } from "node:test";
+
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { makePromptStream, userMessage } from "../src/prompt-stream.js";
 
 const text = (msg) => msg.message.content[0].text;
@@ -26,11 +27,18 @@ describe("makePromptStream", () => {
 		const ps = makePromptStream();
 		const written = [];
 		let releaseWrite;
-		const writeGate = new Promise((r) => { releaseWrite = r; });
-		const pumping = pump(ps.stream, async (msg) => { written.push(text(msg)); await writeGate; });
+		const writeGate = new Promise((r) => {
+			releaseWrite = r;
+		});
+		const pumping = pump(ps.stream, async (msg) => {
+			written.push(text(msg));
+			await writeGate;
+		});
 
 		let acked = false;
-		const ack = ps.push(userMessage([{ type: "text", text: "steer" }])).then(() => { acked = true; });
+		const ack = ps.push(userMessage([{ type: "text", text: "steer" }])).then(() => {
+			acked = true;
+		});
 
 		// Write is in flight but not finished — the ack must not have resolved,
 		// or a caller could release a tool result before the steer hits stdin.
@@ -49,7 +57,9 @@ describe("makePromptStream", () => {
 	it("delivers messages in push order and ends after draining", async () => {
 		const ps = makePromptStream();
 		const written = [];
-		const pumping = pump(ps.stream, (msg) => { written.push(text(msg)); });
+		const pumping = pump(ps.stream, (msg) => {
+			written.push(text(msg));
+		});
 
 		await ps.push(userMessage([{ type: "text", text: "first" }]));
 		await ps.push(userMessage([{ type: "text", text: "second" }]));
@@ -129,7 +139,10 @@ describe("makePromptStream", () => {
 	it("keeps the first failure rather than the last", async () => {
 		const ps = makePromptStream();
 		// fail() propagates into the generator, so the pump rejects too.
-		const pumping = assert.rejects(pump(ps.stream, () => {}), /CLI exited with code 1/);
+		const pumping = assert.rejects(
+			pump(ps.stream, () => {}),
+			/CLI exited with code 1/,
+		);
 		const queued = ps.push(userMessage([{ type: "text", text: "queued" }]));
 
 		// The provider's catch reports the real cause, then its finally fails the

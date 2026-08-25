@@ -20,7 +20,7 @@
 // Exits 1 when a carried attachment fails to resolve, or resolves to the wrong
 // message.
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { collectCarriedAttachments, placeCarriedAttachments } from "../src/attachments.js";
@@ -37,11 +37,19 @@ const REPORTED = new Set(["file", "edited_text_file"]);
 
 function* sessionFiles(dir) {
 	let entries;
-	try { entries = readdirSync(dir); } catch { return; }
+	try {
+		entries = readdirSync(dir);
+	} catch {
+		return;
+	}
 	for (const name of entries) {
 		const path = join(dir, name);
 		let st;
-		try { st = statSync(path); } catch { continue; }
+		try {
+			st = statSync(path);
+		} catch {
+			continue;
+		}
 		if (st.isDirectory()) yield* sessionFiles(path);
 		else if (name.endsWith(".jsonl")) yield path;
 	}
@@ -49,27 +57,38 @@ function* sessionFiles(dir) {
 
 const matrix = new Map();
 const bump = (key) => matrix.set(key, (matrix.get(key) ?? 0) + 1);
-let sessions = 0, totalContentBearing = 0, resolved = 0, checked = 0, correct = 0;
+let sessions = 0,
+	totalContentBearing = 0,
+	resolved = 0,
+	checked = 0,
+	correct = 0;
 const unresolved = [];
 const misplaced = [];
 
 for (const path of sessionFiles(ROOT)) {
 	let raw;
-	try { raw = readFileSync(path, "utf8"); } catch { continue; }
+	try {
+		raw = readFileSync(path, "utf8");
+	} catch {
+		continue;
+	}
 	if (!raw.includes('"attachment"')) continue;
 	let records;
 	try {
-		records = raw.split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l));
+		records = raw
+			.split("\n")
+			.filter((l) => l.trim())
+			.map((l) => JSON.parse(l));
 	} catch {
 		continue; // a session CC was mid-write on; the bridge tolerates these too
 	}
 	sessions++;
 
 	const byUuid = new Map(records.filter((r) => r?.uuid).map((r) => [r.uuid, r]));
-	const present = records.filter(
-		(r) => r?.type === "attachment" && CARRIED.has(r.attachment?.type),
-	);
-	for (const r of records.filter((r) => r?.type === "attachment" && REPORTED.has(r.attachment?.type) && !CARRIED.has(r.attachment?.type))) {
+	const present = records.filter((r) => r?.type === "attachment" && CARRIED.has(r.attachment?.type));
+	for (const r of records.filter(
+		(r) => r?.type === "attachment" && REPORTED.has(r.attachment?.type) && !CARRIED.has(r.attachment?.type),
+	)) {
 		bump(`${r.attachment.type} <- ${byUuid.get(r.parentUuid)?.type ?? "missing"}  (not carried)`);
 	}
 	for (const r of present) {
@@ -117,11 +136,15 @@ for (const path of sessionFiles(ROOT)) {
 
 console.log(`sessions with attachments: ${sessions}`);
 console.log(`carried kinds present:       ${totalContentBearing}`);
-console.log(`resolved to a prompt:        ${resolved}` +
-	(totalContentBearing ? `  (${((100 * resolved) / totalContentBearing).toFixed(1)}%)` : ""));
+console.log(
+	`resolved to a prompt:        ${resolved}` +
+		(totalContentBearing ? `  (${((100 * resolved) / totalContentBearing).toFixed(1)}%)` : ""),
+);
 
-console.log(`placed at the right message: ${correct}/${checked}` +
-	(checked ? `  (${((100 * correct) / checked).toFixed(1)}%)` : ""));
+console.log(
+	`placed at the right message: ${correct}/${checked}` +
+		(checked ? `  (${((100 * correct) / checked).toFixed(1)}%)` : ""),
+);
 
 console.log("\nshapes in the wild (attachment <- parent record):");
 for (const [key, n] of [...matrix].sort((a, b) => b[1] - a[1])) {

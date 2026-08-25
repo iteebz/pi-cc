@@ -6,23 +6,40 @@
 // or its prompt cache — so this path never calls syncSharedSession and never
 // persists a session.
 
-import type { AssistantMessage, AssistantMessageEventStream, Context, Model, SimpleStreamOptions } from "@earendil-works/pi-ai";
-import type { BranchSummaryResult, CompactionEntry } from "@earendil-works/pi-coding-agent";
 import { query, type SDKMessage, type SettingSource } from "@anthropic-ai/claude-agent-sdk";
+import type {
+	AssistantMessage,
+	AssistantMessageEventStream,
+	Context,
+	Model,
+	SimpleStreamOptions,
+} from "@earendil-works/pi-ai";
+import type { BranchSummaryResult, CompactionEntry } from "@earendil-works/pi-coding-agent";
 import { CC_CHILD_ENV, loadConfig } from "./config.js";
 import { debug, errorMessage, makeCliDebugOptions } from "./debug.js";
 import { logServedContextWindow, newAssistantMessageEventStream, resultErrorText } from "./stream.js";
 import { extractUserPrompt } from "./turn.js";
 
-function newAssistantOutput(model: Model<any>, text: string, stopReason: AssistantMessage["stopReason"], errorMessage?: string): AssistantMessage {
+function newAssistantOutput(
+	model: Model<any>,
+	text: string,
+	stopReason: AssistantMessage["stopReason"],
+	errorMessage?: string,
+): AssistantMessage {
 	return {
 		role: "assistant",
 		content: text ? [{ type: "text", text }] : [],
 		api: model.api,
 		provider: model.provider,
 		model: model.id,
-		usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
-			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+		usage: {
+			input: 0,
+			output: 0,
+			cacheRead: 0,
+			cacheWrite: 0,
+			totalTokens: 0,
+			cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+		},
 		stopReason,
 		...(errorMessage ? { errorMessage } : {}),
 		timestamp: Date.now(),
@@ -33,7 +50,7 @@ function extractIsolatedSummaryPrompt(messages: Context["messages"]): string {
 	if (messages.length !== 1 || messages[0].role !== "user") {
 		throw new Error(
 			`isolatedStreamFn: expected exactly 1 user message, got ${messages.length} ` +
-			`(${messages.map((m) => m.role).join(",")})`,
+				`(${messages.map((m) => m.role).join(",")})`,
 		);
 	}
 	const promptText = extractUserPrompt(messages);
@@ -42,7 +59,11 @@ function extractIsolatedSummaryPrompt(messages: Context["messages"]): string {
 }
 
 /** The stream function handed to pi's `compact` and `generateBranchSummary`. */
-export function isolatedStreamFn(model: Model<any>, context: Context, options?: SimpleStreamOptions): AssistantMessageEventStream {
+export function isolatedStreamFn(
+	model: Model<any>,
+	context: Context,
+	options?: SimpleStreamOptions,
+): AssistantMessageEventStream {
 	const stream = newAssistantMessageEventStream();
 	void runIsolatedSummary(model, context, options, stream);
 	return stream;
@@ -59,7 +80,9 @@ async function runIsolatedSummary(
 	const onAbort = () => {
 		wasAborted = true;
 		void sdkQuery?.interrupt().catch(() => {});
-		try { sdkQuery?.close(); } catch {}
+		try {
+			sdkQuery?.close();
+		} catch {}
 	};
 
 	try {
@@ -143,21 +166,26 @@ async function runIsolatedSummary(
 		stream.end();
 	} finally {
 		options?.signal?.removeEventListener("abort", onAbort);
-		try { sdkQuery?.close(); } catch {}
+		try {
+			sdkQuery?.close();
+		} catch {}
 	}
 }
 
 /** Carry the previous compaction's file ops into this one, so a second compact
  *  doesn't forget every file the first one knew about. */
-export function reinjectPriorCompactionFileOps(branchEntries: Array<{ type: string; details?: unknown }>, preparation: { fileOps: { read: Set<string>; edited: Set<string> } }): void {
-	const prior = [...branchEntries]
-		.reverse()
-		.find((entry): entry is CompactionEntry => entry.type === "compaction");
+export function reinjectPriorCompactionFileOps(
+	branchEntries: Array<{ type: string; details?: unknown }>,
+	preparation: { fileOps: { read: Set<string>; edited: Set<string> } },
+): void {
+	const prior = [...branchEntries].reverse().find((entry): entry is CompactionEntry => entry.type === "compaction");
 	const details = prior?.details as { readFiles?: unknown; modifiedFiles?: unknown } | undefined;
 	if (!Array.isArray(details?.readFiles) || !Array.isArray(details?.modifiedFiles)) return;
 	for (const file of details.readFiles) preparation.fileOps.read.add(String(file));
 	for (const file of details.modifiedFiles) preparation.fileOps.edited.add(String(file));
-	debug(`compact takeover: re-injected prior file ops read=${details.readFiles.length} modified=${details.modifiedFiles.length}`);
+	debug(
+		`compact takeover: re-injected prior file ops read=${details.readFiles.length} modified=${details.modifiedFiles.length}`,
+	);
 }
 
 /** What pi's branch summary means for the navigation it was asked for.
@@ -166,7 +194,9 @@ export function reinjectPriorCompactionFileOps(branchEntries: Array<{ type: stri
  *  of the navigation rather than moving without one. Separated from the event
  *  handler so this decision is testable without a Claude Code subprocess — driving
  *  `generateBranchSummary` itself would only be testing pi. */
-export function branchSummaryOutcome(result: BranchSummaryResult): { cancel: true } | { summary: { summary: string; details: unknown; usage?: BranchSummaryResult["usage"] } } {
+export function branchSummaryOutcome(
+	result: BranchSummaryResult,
+): { cancel: true } | { summary: { summary: string; details: unknown; usage?: BranchSummaryResult["usage"] } } {
 	if (result.aborted) return { cancel: true };
 	if (result.error) throw new Error(result.error);
 	debug(`session_before_tree: takeover complete summaryLen=${result.summary?.length ?? 0}`);

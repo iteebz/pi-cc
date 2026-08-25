@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // An image sent on another provider must survive the bridge writing pi's history
 // into a Claude Code session, and still be visible to Claude after the resume.
 //
@@ -8,11 +9,11 @@
 // the block-flattening that dropped images from written sessions) only shows up
 // end to end.
 
-import { createRpcHarness } from "./lib/rpc-harness.mjs";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getProjectDir } from "cc-session-io";
+import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
 // 32x32 solid crimson PNG — a colour the model can name unambiguously.
 const CRIMSON_PNG =
@@ -47,7 +48,11 @@ function fail(msg) {
 // an error" contains "red". Only the first word counts, so a model that cannot
 // see the image has no way to accidentally pass.
 function namesTheColour(answer) {
-	const firstWord = answer.trim().toLowerCase().replace(/^[^a-z]+/, "").split(/[^a-z]/)[0];
+	const firstWord = answer
+		.trim()
+		.toLowerCase()
+		.replace(/^[^a-z]+/, "")
+		.split(/[^a-z]/)[0];
 	return firstWord === "red" || firstWord === "crimson";
 }
 
@@ -57,11 +62,14 @@ try {
 	// confirms the fixture is a readable image before the bridge is involved.
 	console.log("Turn 1: send the image to the non-bridge provider...");
 	const collector = collectText();
-	await send({
-		type: "prompt",
-		message: "What colour is this image? Reply with just the colour word.",
-		images: [{ type: "image", data: CRIMSON_PNG, mimeType: "image/png" }],
-	}, TIMEOUT);
+	await send(
+		{
+			type: "prompt",
+			message: "What colour is this image? Reply with just the colour word.",
+			images: [{ type: "image", data: CRIMSON_PNG, mimeType: "image/png" }],
+		},
+		TIMEOUT,
+	);
 	await waitForEvent("agent_end", TIMEOUT);
 	const seen = collector.stop();
 	console.log(`  Response: ${seen.trim().slice(0, 60)}`);

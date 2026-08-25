@@ -26,7 +26,8 @@ import { join } from "node:path";
 // output is echoed into this log verbatim and contains `usage:`/`WARNING:`
 // strings of its own; an unanchored scan picks those up and inflates every count.
 const LINE = /^\[(\d{4}-\d{2}-\d{2}T[\d:.]+Z)\] \[([a-z0-9]+)\] (.*)$/;
-const USAGE = /^usage: in=(\d+) out=(\d+) cacheRead=(\d+) cacheWrite=(\d+) total=(\d+)(?: reasoning=\d+)? cachePct=(\d+)% model=(\S+)/;
+const USAGE =
+	/^usage: in=(\d+) out=(\d+) cacheRead=(\d+) cacheWrite=(\d+) total=(\d+)(?: reasoning=\d+)? cachePct=(\d+)% model=(\S+)/;
 const FRESH = /^provider: fresh query model=(\S+) msgs=(\d+) tools=(\d+) resume=(\S+) effort=(\S+)/;
 const SYNC = /^syncResult: path=(\S+)/;
 const RESET = /^(session_start|session_compact|session_before_compact|compact summary|Case 1 synthetic)/;
@@ -41,7 +42,7 @@ const MIN_SHORTFALL = 2_000;
 const TTL_MIN_MS = 5 * 60 * 1000;
 // Boundary break rate measured over the full April-July 2026 log (see AUDIT.md).
 // Well above it means a prefix-mutation regression, not server-side noise.
-const BOUNDARY_RATE_CEILING = 0.10;
+const BOUNDARY_RATE_CEILING = 0.1;
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -57,8 +58,9 @@ if (Number.isNaN(since) || Number.isNaN(ceiling)) {
 	console.error("usage: audit-cache.mjs [log] [--since YYYY-MM-DD] [--ceiling 0.30]");
 	process.exit(2);
 }
-const logPath = args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"))[0]
-	?? join(homedir(), ".pi/agent/claude-bridge.log");
+const logPath =
+	args.filter((a, i) => !a.startsWith("--") && !args[i - 1]?.startsWith("--"))[0] ??
+	join(homedir(), ".pi/agent/claude-bridge.log");
 
 // A turn emits several `usage:` lines reporting the same request as its output
 // grows. Collapsing runs that share (cacheRead, cacheWrite, model) leaves one row
@@ -72,19 +74,32 @@ function parse(text) {
 		let entry = perModule.get(moduleId);
 		if (!entry) perModule.set(moduleId, (entry = { requests: [], marks: [] }));
 		const u = USAGE.exec(msg);
-		if (!u) { entry.marks.push(msg); continue; }
-		const cacheRead = +u[3], cacheWrite = +u[4], model = u[7];
+		if (!u) {
+			entry.marks.push(msg);
+			continue;
+		}
+		const cacheRead = +u[3],
+			cacheWrite = +u[4],
+			model = u[7];
 		const prev = entry.requests.at(-1);
 		if (prev && prev.cacheRead === cacheRead && prev.cacheWrite === cacheWrite && prev.model === model) {
 			// Same request, later snapshot as its output grew. Keep the record's
 			// original `marks` — they are the log lines that preceded the request,
 			// and replacing the object here would swap in the ones that followed it.
-			prev.ts = ts; prev.at = Date.parse(ts); prev.pct = +u[6];
+			prev.ts = ts;
+			prev.at = Date.parse(ts);
+			prev.pct = +u[6];
 			continue;
 		}
 		entry.requests.push({
-			ts, at: Date.parse(ts), moduleId,
-			in: +u[1], cacheRead, cacheWrite, pct: +u[6], model,
+			ts,
+			at: Date.parse(ts),
+			moduleId,
+			in: +u[1],
+			cacheRead,
+			cacheWrite,
+			pct: +u[6],
+			model,
 			marks: entry.marks,
 		});
 		entry.marks = [];
@@ -104,7 +119,8 @@ function run() {
 	const benign = new Map();
 	const bump = (reason, tokens) => {
 		const b = benign.get(reason) ?? { n: 0, tokens: 0 };
-		b.n++; b.tokens += Math.max(0, tokens);
+		b.n++;
+		b.tokens += Math.max(0, tokens);
 		benign.set(reason, b);
 	};
 	const group = { "in-query": { n: 0, breaks: 0, tokens: 0 }, boundary: { n: 0, breaks: 0, tokens: 0 } };
@@ -114,7 +130,8 @@ function run() {
 	for (const { requests: rs } of parse(text).values()) {
 		requests += rs.length;
 		for (let i = 1; i < rs.length; i++) {
-			const prev = rs[i - 1], cur = rs[i];
+			const prev = rs[i - 1],
+				cur = rs[i];
 			// What turn N-1 demonstrably left in the cache: what it read plus what it
 			// wrote. Its `in` is deliberately excluded — those are tokens the API did
 			// *not* cache on that request, so expecting them back is a false positive,
@@ -124,8 +141,14 @@ function run() {
 			const expected = prev.cacheRead + prev.cacheWrite;
 			const shortfall = expected - cur.cacheRead;
 
-			const fresh = cur.marks.map((m) => FRESH.exec(m)).filter(Boolean).at(-1);
-			const sync = cur.marks.map((m) => SYNC.exec(m)).filter(Boolean).at(-1);
+			const fresh = cur.marks
+				.map((m) => FRESH.exec(m))
+				.filter(Boolean)
+				.at(-1);
+			const sync = cur.marks
+				.map((m) => SYNC.exec(m))
+				.filter(Boolean)
+				.at(-1);
 			const prevFresh = prev.freshParams ?? null;
 			cur.freshParams = fresh ?? prevFresh;
 
@@ -136,24 +159,50 @@ function run() {
 
 			// Everything below legitimately changes the prefix or the cache entry.
 			const gap = cur.at - prev.at;
-			if (prev.model !== cur.model) { bump(`model change (${prev.model} → ${cur.model})`, shortfall); continue; }
-			if (cur.marks.some((m) => RESET.test(m))) { bump("compaction / new session / isolated subprocess", shortfall); continue; }
-			if (sync && sync[1] === "clean-start") { bump("clean start (no prior history)", shortfall); continue; }
-			if (fresh && fresh[4] === "none") { bump("fresh query, no resume", shortfall); continue; }
-			if (fresh && prevFresh && fresh[3] !== prevFresh[3]) { bump("tool set changed", shortfall); continue; }
-			if (fresh && prevFresh && fresh[5] !== prevFresh[5]) { bump("effort changed", shortfall); continue; }
-			if (gap > TTL_MIN_MS) { bump(`idle > ${TTL_MIN_MS / 6e4}min (TTL may have expired)`, shortfall); continue; }
+			if (prev.model !== cur.model) {
+				bump(`model change (${prev.model} → ${cur.model})`, shortfall);
+				continue;
+			}
+			if (cur.marks.some((m) => RESET.test(m))) {
+				bump("compaction / new session / isolated subprocess", shortfall);
+				continue;
+			}
+			if (sync && sync[1] === "clean-start") {
+				bump("clean start (no prior history)", shortfall);
+				continue;
+			}
+			if (fresh && fresh[4] === "none") {
+				bump("fresh query, no resume", shortfall);
+				continue;
+			}
+			if (fresh && prevFresh && fresh[3] !== prevFresh[3]) {
+				bump("tool set changed", shortfall);
+				continue;
+			}
+			if (fresh && prevFresh && fresh[5] !== prevFresh[5]) {
+				bump("effort changed", shortfall);
+				continue;
+			}
+			if (gap > TTL_MIN_MS) {
+				bump(`idle > ${TTL_MIN_MS / 6e4}min (TTL may have expired)`, shortfall);
+				continue;
+			}
 
 			const kind = fresh ? "boundary" : "in-query";
-			group[kind].breaks++; group[kind].tokens += shortfall;
+			group[kind].breaks++;
+			group[kind].tokens += shortfall;
 			breaks.push({ kind, ...cur, shortfall, expected, path: sync?.[1] ?? (fresh ? "?" : "in-query") });
 		}
 		// Denominators: every comparable pair, break or not.
 		for (let i = 1; i < rs.length; i++) {
-			const prev = rs[i - 1], cur = rs[i];
+			const prev = rs[i - 1],
+				cur = rs[i];
 			if (prev.model !== cur.model || cur.at - prev.at > TTL_MIN_MS) continue;
 			if (cur.marks.some((m) => RESET.test(m))) continue;
-			const fresh = cur.marks.map((m) => FRESH.exec(m)).filter(Boolean).at(-1);
+			const fresh = cur.marks
+				.map((m) => FRESH.exec(m))
+				.filter(Boolean)
+				.at(-1);
 			if (fresh && fresh[4] === "none") continue;
 			group[fresh ? "boundary" : "in-query"].n++;
 		}
@@ -162,7 +211,9 @@ function run() {
 	const rate = (g) => (g.n ? g.breaks / g.n : 0);
 	console.log(`log:      ${logPath}`);
 	console.log(`requests: ${requests} API requests (deduped from usage lines)`);
-	console.log(`baseline: cacheRead[N] should equal cacheRead+cacheWrite[N-1]; break = shortfall >= ${MIN_SHORTFALL} tok\n`);
+	console.log(
+		`baseline: cacheRead[N] should equal cacheRead+cacheWrite[N-1]; break = shortfall >= ${MIN_SHORTFALL} tok\n`,
+	);
 
 	console.log("prefix changes classified as benign:");
 	for (const [reason, b] of [...benign].sort((a, b) => b[1].tokens - a[1].tokens)) {
@@ -171,8 +222,12 @@ function run() {
 	if (!benign.size) console.log("  (none)");
 
 	console.log("\nresidual breaks (prefix should have been byte-identical):");
-	console.log(`  in-query  ${String(group["in-query"].breaks).padStart(4)} / ${String(group["in-query"].n).padStart(5)} pairs  ${(rate(group["in-query"]) * 100).toFixed(1)}%  ${(group["in-query"].tokens / 1e6).toFixed(1)}M tok   <- control: bridge cannot mutate the prefix here`);
-	console.log(`  boundary  ${String(group.boundary.breaks).padStart(4)} / ${String(group.boundary.n).padStart(5)} pairs  ${(rate(group.boundary) * 100).toFixed(1)}%  ${(group.boundary.tokens / 1e6).toFixed(1)}M tok   <- --resume boundaries`);
+	console.log(
+		`  in-query  ${String(group["in-query"].breaks).padStart(4)} / ${String(group["in-query"].n).padStart(5)} pairs  ${(rate(group["in-query"]) * 100).toFixed(1)}%  ${(group["in-query"].tokens / 1e6).toFixed(1)}M tok   <- control: bridge cannot mutate the prefix here`,
+	);
+	console.log(
+		`  boundary  ${String(group.boundary.breaks).padStart(4)} / ${String(group.boundary.n).padStart(5)} pairs  ${(rate(group.boundary) * 100).toFixed(1)}%  ${(group.boundary.tokens / 1e6).toFixed(1)}M tok   <- --resume boundaries`,
+	);
 
 	const onRebuild = breaks.filter((b) => b.path === "rebuild");
 	console.log(`\nbreaks on a rebuild boundary (bridge rewrote the session): ${onRebuild.length}`);
@@ -182,7 +237,9 @@ function run() {
 
 	console.log("\nlargest residual breaks:");
 	for (const b of [...breaks].sort((x, y) => y.shortfall - x.shortfall).slice(0, 10)) {
-		console.log(`  ${b.ts} module=${b.moduleId} ${b.kind}/${b.path} -${b.shortfall} tok (read ${b.cacheRead}/${b.expected}, ${b.pct}%)`);
+		console.log(
+			`  ${b.ts} module=${b.moduleId} ${b.kind}/${b.path} -${b.shortfall} tok (read ${b.cacheRead}/${b.expected}, ${b.pct}%)`,
+		);
 	}
 
 	// Exit reflects only the window: the log spans months of already-fixed bugs.
@@ -190,9 +247,18 @@ function run() {
 	const windowed = onRebuild.filter(recent);
 	const excess = rate(group.boundary) > ceiling && group.boundary.breaks >= 10;
 	console.log();
-	if (excess) console.log(`FAIL: boundary break rate ${(rate(group.boundary) * 100).toFixed(1)}% exceeds ceiling ${(ceiling * 100).toFixed(0)}% — suspect a prefix-mutation regression`);
-	else if (windowed.length) console.log(`FAIL: ${windowed.length} break(s) on a rebuild boundary${since === null ? "" : " in window"} — inspect the rewritten session`);
-	else console.log(`OK: boundary rate ${(rate(group.boundary) * 100).toFixed(1)}% vs in-query control ${(rate(group["in-query"]) * 100).toFixed(1)}% — residual is at the server-side eviction floor`);
+	if (excess)
+		console.log(
+			`FAIL: boundary break rate ${(rate(group.boundary) * 100).toFixed(1)}% exceeds ceiling ${(ceiling * 100).toFixed(0)}% — suspect a prefix-mutation regression`,
+		);
+	else if (windowed.length)
+		console.log(
+			`FAIL: ${windowed.length} break(s) on a rebuild boundary${since === null ? "" : " in window"} — inspect the rewritten session`,
+		);
+	else
+		console.log(
+			`OK: boundary rate ${(rate(group.boundary) * 100).toFixed(1)}% vs in-query control ${(rate(group["in-query"]) * 100).toFixed(1)}% — residual is at the server-side eviction floor`,
+		);
 
 	process.exit(excess || windowed.length ? 1 : 0);
 }

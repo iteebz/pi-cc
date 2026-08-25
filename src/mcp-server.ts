@@ -51,7 +51,7 @@ export interface McpToolDef {
 // tool with no arguments and pi's own validation rejecting them.
 function assertObjectSchema(tool: McpToolDef): void {
 	const schema = tool.inputSchema as Record<string, unknown> | undefined;
-	if (!schema || schema.type !== "object") {
+	if (schema?.type !== "object") {
 		throw new Error(`${tool.name}: MCP tool parameters must be an object schema, got ${JSON.stringify(schema)}`);
 	}
 }
@@ -74,7 +74,9 @@ export function createToolServer(name: string, tools: McpToolDef[]) {
 		if (!tool) throw new Error(`Unknown tool: ${request.params.name}`);
 		const toolCallId = request.params._meta?.[TOOL_USE_ID_META];
 		if (typeof toolCallId !== "string") {
-			throw new Error(`${tool.name}: tools/call is missing _meta["${TOOL_USE_ID_META}"] — cannot pair the result with its tool call`);
+			throw new Error(
+				`${tool.name}: tools/call is missing _meta["${TOOL_USE_ID_META}"] — cannot pair the result with its tool call`,
+			);
 		}
 		// Narrowed deliberately: McpResult also carries `toolCallId`, which is our
 		// own bookkeeping for pairing and not part of MCP's CallToolResult.

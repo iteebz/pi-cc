@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { renderSkillsBlock } from "../src/skills.js";
 
 function skill(name, { disabled = false } = {}) {
@@ -20,7 +20,6 @@ describe("skills block rendering", () => {
 		assert.match(result, /Use the read tool \(mcp__custom-tools__read\)/);
 		assert.match(result, /<location>\/skills\/browser\/SKILL\.md<\/location>/);
 	});
-
 
 	it("emits nothing without visible skills", () => {
 		assert.equal(renderSkillsBlock([]), undefined);

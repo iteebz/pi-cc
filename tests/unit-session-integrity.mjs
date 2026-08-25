@@ -5,11 +5,12 @@
  *   - verifyWrittenSession (from session-verify.js): warns if the JSONL file
  *     doesn't round-trip (missing file, record-count mismatch, sessionId drift).
  */
-import { describe, it, after } from "node:test";
+
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { after, describe, it } from "node:test";
 import { repairToolPairing } from "cc-session-io";
 import { verifyWrittenSession } from "../src/session-verify.js";
 
@@ -54,7 +55,7 @@ describe("verifyWrittenSession", () => {
 	after(() => rmSync(dir, { recursive: true, force: true }));
 
 	it("no warnings when file round-trips correctly", () => {
-		writeFileSync(path, [rec(SID, 0), rec(SID, 1), rec(SID, 2)].join("\n") + "\n");
+		writeFileSync(path, `${[rec(SID, 0), rec(SID, 1), rec(SID, 2)].join("\n")}\n`);
 		assert.deepEqual(verifyWrittenSession(path, SID, 3), []);
 	});
 
@@ -66,14 +67,14 @@ describe("verifyWrittenSession", () => {
 	});
 
 	it("warns on record count mismatch", () => {
-		writeFileSync(path, [rec(SID, 0), rec(SID, 1)].join("\n") + "\n");
+		writeFileSync(path, `${[rec(SID, 0), rec(SID, 1)].join("\n")}\n`);
 		const warnings = verifyWrittenSession(path, SID, 5);
 		assert.equal(warnings.length, 1);
 		assert.match(warnings[0], /record count mismatch.*expected=5.*actual=2/);
 	});
 
 	it("warns on sessionId drift", () => {
-		writeFileSync(path, [rec(SID, 0), rec("different-sid", 1)].join("\n") + "\n");
+		writeFileSync(path, `${[rec(SID, 0), rec("different-sid", 1)].join("\n")}\n`);
 		const warnings = verifyWrittenSession(path, SID, 2);
 		assert.equal(warnings.length, 1);
 		assert.match(warnings[0], /sessionId drift/);

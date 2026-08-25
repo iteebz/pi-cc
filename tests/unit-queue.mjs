@@ -13,11 +13,12 @@
  * id from a positional cursor into `turnToolCallIds` (fixed in fc2efeb6), which
  * mispaired as soon as Claude's call order diverged from its emission order.
  */
-import { describe, it } from "node:test";
+
 import assert from "node:assert/strict";
-import { QueryContext } from "../src/query-state.js";
+import { describe, it } from "node:test";
 import { extractAllToolResults } from "../src/extract-tool-results.js";
 import { makePromptStream } from "../src/prompt-stream.js";
+import { QueryContext } from "../src/query-state.js";
 
 const { buildMcpServers, deliverToolResults, drainForAbort } = await import("../src/tools.js");
 
@@ -206,7 +207,10 @@ describe("abandoning a query", () => {
 });
 
 describe("extracting a turn's tool results from pi's context", () => {
-	const assistant = (...ids) => ({ role: "assistant", content: ids.map((id) => ({ type: "toolCall", name: "alpha", id })) });
+	const assistant = (...ids) => ({
+		role: "assistant",
+		content: ids.map((id) => ({ type: "toolCall", name: "alpha", id })),
+	});
 	const toolResult = (toolCallId, content, isError) => ({ role: "toolResult", toolCallId, content, isError });
 	const texts = (results) => results.map((r) => r.content[0].text);
 
@@ -240,7 +244,10 @@ describe("extracting a turn's tool results from pi's context", () => {
 		]);
 
 		assert.deepEqual(texts(results), ["r1", "r2", "r3"]);
-		assert.deepEqual(results.map((r) => r.isError), [undefined, true, undefined]);
+		assert.deepEqual(
+			results.map((r) => r.isError),
+			[undefined, true, undefined],
+		);
 	});
 
 	it("finds nothing when the turn's tools have not reported yet", () => {
@@ -266,7 +273,13 @@ describe("delivering an extracted turn to its handlers", () => {
 
 		const { results } = extractAllToolResults([
 			{ role: "user", content: "prompt" },
-			{ role: "assistant", content: [{ type: "toolCall", id: "toolu_1" }, { type: "toolCall", id: "toolu_2" }] },
+			{
+				role: "assistant",
+				content: [
+					{ type: "toolCall", id: "toolu_1" },
+					{ type: "toolCall", id: "toolu_2" },
+				],
+			},
 			{ role: "toolResult", toolCallId: "toolu_1", content: "read the file" },
 			{ role: "user", content: "steer" },
 			{ role: "toolResult", toolCallId: "toolu_2", content: "ran the command" },

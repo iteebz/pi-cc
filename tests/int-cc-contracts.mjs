@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // Executable contracts for the undocumented Claude Code / Agent SDK behavior the
 // bridge is built on.
 //
@@ -24,10 +25,10 @@
 // Requires: ANTHROPIC_API_KEY or CC logged in. Must run OUTSIDE the sandbox —
 // CC persists session state under ~/.claude.
 
-import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { test } from "node:test";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
@@ -66,7 +67,11 @@ function toolServer(tools, calls) {
 	return { "custom-tools": { type: "sdk", name: "custom-tools", instance: server } };
 }
 
-const noArgTool = (name) => ({ name, description: `Returns the ${name} value.`, inputSchema: { type: "object", properties: {} } });
+const noArgTool = (name) => ({
+	name,
+	description: `Returns the ${name} value.`,
+	inputSchema: { type: "object", properties: {} },
+});
 
 /** Every tool_use block CC emitted, plus every tool_result it fed back. */
 async function collect(q) {
@@ -114,19 +119,29 @@ test("tools/call carries _meta[claudecode/toolUseId] equal to its own tool_use i
 	// result is mispaired — silently, which is worse than the throw in
 	// src/mcp-server.ts. Assert the pairing, not just the key's presence.
 	const calls = [];
-	const { toolUses } = await collect(query({
-		prompt: "Call both the alpha tool and the beta tool at the same time, in a single assistant message with two parallel tool calls. Then report both values.",
-		options: providerOptions({ mcpServers: toolServer([noArgTool("alpha"), noArgTool("beta")], calls) }),
-	}));
+	const { toolUses } = await collect(
+		query({
+			prompt:
+				"Call both the alpha tool and the beta tool at the same time, in a single assistant message with two parallel tool calls. Then report both values.",
+			options: providerOptions({ mcpServers: toolServer([noArgTool("alpha"), noArgTool("beta")], calls) }),
+		}),
+	);
 
 	assert.ok(calls.length >= 1, "CC dispatched no tool call — the test proved nothing");
 	for (const call of calls) {
 		const id = call.meta?.[TOOL_USE_ID_META];
-		assert.equal(typeof id, "string", `tools/call for ${call.name} has no _meta["${TOOL_USE_ID_META}"]: ${JSON.stringify(call.meta)}`);
+		assert.equal(
+			typeof id,
+			"string",
+			`tools/call for ${call.name} has no _meta["${TOOL_USE_ID_META}"]: ${JSON.stringify(call.meta)}`,
+		);
 		const match = toolUses.find((use) => use.id === id);
 		assert.ok(match, `_meta id ${id} matches no tool_use CC emitted: ${JSON.stringify(toolUses)}`);
-		assert.equal(match.name, `mcp__custom-tools__${call.name}`,
-			`tools/call ${call.name} was stamped with the id of ${match.name} — results would be mispaired`);
+		assert.equal(
+			match.name,
+			`mcp__custom-tools__${call.name}`,
+			`tools/call ${call.name} was stamped with the id of ${match.name} — results would be mispaired`,
+		);
 	}
 });
 
@@ -135,20 +150,28 @@ test("tools/call names the bare tool, not the mcp__server__tool alias", { timeou
 	// the tool prefixed and calls it unprefixed; if that ever flips, every call
 	// hits the "Unknown tool" throw.
 	const calls = [];
-	await collect(query({
-		prompt: "Call the alpha tool once, then stop.",
-		options: providerOptions({ mcpServers: toolServer([noArgTool("alpha")], calls) }),
-	}));
+	await collect(
+		query({
+			prompt: "Call the alpha tool once, then stop.",
+			options: providerOptions({ mcpServers: toolServer([noArgTool("alpha")], calls) }),
+		}),
+	);
 
-	assert.deepEqual(calls.map((c) => c.name), ["alpha"]);
+	assert.deepEqual(
+		calls.map((c) => c.name),
+		["alpha"],
+	);
 });
 
 // --- `tools: []` and the unserved-tool premise ---
 
 test("tools: [] exposes no builtin tools — only what we serve over MCP", { timeout: 60_000 }, async () => {
 	const init = await initOnly(providerOptions({ mcpServers: toolServer([noArgTool("alpha")], []) }));
-	assert.deepEqual(init.tools, ["mcp__custom-tools__alpha"],
-		`CC exposed tools beyond our MCP server: ${JSON.stringify(init.tools)}`);
+	assert.deepEqual(
+		init.tools,
+		["mcp__custom-tools__alpha"],
+		`CC exposed tools beyond our MCP server: ${JSON.stringify(init.tools)}`,
+	);
 });
 
 test("a tool_use naming an unserved tool is answered by CC, never dispatched to us", { timeout: 120_000 }, async () => {
@@ -156,20 +179,39 @@ test("a tool_use naming an unserved tool is answered by CC, never dispatched to 
 	// to the model, so the always-true half (never dispatched) is asserted
 	// unconditionally and the rejection shape only when the bait was taken.
 	const calls = [];
-	const { toolUses, toolResults } = await collect(query({
-		prompt: "You have a tool registered under the plain name `Bash`. Invoke `Bash` (exactly that name) with command `echo hi`. Do not use any mcp__ prefixed name. Try it even if you doubt it exists.",
-		options: providerOptions({ mcpServers: toolServer([{ name: "bash", description: "Run a shell command.", inputSchema: { type: "object", properties: { command: { type: "string" } } } }], calls) }),
-	}));
+	const { toolUses, toolResults } = await collect(
+		query({
+			prompt:
+				"You have a tool registered under the plain name `Bash`. Invoke `Bash` (exactly that name) with command `echo hi`. Do not use any mcp__ prefixed name. Try it even if you doubt it exists.",
+			options: providerOptions({
+				mcpServers: toolServer(
+					[
+						{
+							name: "bash",
+							description: "Run a shell command.",
+							inputSchema: { type: "object", properties: { command: { type: "string" } } },
+						},
+					],
+					calls,
+				),
+			}),
+		}),
+	);
 
-	assert.deepEqual(calls.filter((c) => c.name !== "bash"), [],
-		`CC dispatched a tool we do not serve: ${JSON.stringify(calls.map((c) => c.name))}`);
+	assert.deepEqual(
+		calls.filter((c) => c.name !== "bash"),
+		[],
+		`CC dispatched a tool we do not serve: ${JSON.stringify(calls.map((c) => c.name))}`,
+	);
 
 	const bogus = toolUses.filter((use) => !use.name.startsWith("mcp__custom-tools__"));
 	if (bogus.length === 0) return; // model declined the bait; nothing more to pin
 	for (const use of bogus) {
 		const rejection = toolResults.find((block) => block.tool_use_id === use.id);
-		assert.ok(rejection?.is_error && String(rejection.content).includes("No such tool available"),
-			`CC did not self-answer the unserved tool_use ${use.name} [${use.id}]: ${JSON.stringify(rejection)}`);
+		assert.ok(
+			rejection?.is_error && String(rejection.content).includes("No such tool available"),
+			`CC did not self-answer the unserved tool_use ${use.name} [${use.id}]: ${JSON.stringify(rejection)}`,
+		);
 	}
 	// Anything CC did dispatch came from a different tool_use block, so a result
 	// keyed to the rejected id can never release the real handler — which is why
@@ -211,23 +253,33 @@ test("is_error can be true on a result whose subtype is still success", { timeou
 test("result.modelUsage reports the served context window", { timeout: 120_000 }, async () => {
 	// The only place the runtime entitlement is observable — model.contextWindow
 	// is what pi registered, not what the account actually got (issue #18).
-	const { result } = await collect(query({ prompt: "Reply with just: OK", options: providerOptions({ maxTurns: 1, persistSession: false }) }));
+	const { result } = await collect(
+		query({ prompt: "Reply with just: OK", options: providerOptions({ maxTurns: 1, persistSession: false }) }),
+	);
 	const entries = Object.values(result?.modelUsage ?? {});
 	assert.ok(entries.length > 0, `result carried no modelUsage: ${JSON.stringify(Object.keys(result ?? {}))}`);
-	assert.ok(entries.every((usage) => typeof usage.contextWindow === "number"),
-		`modelUsage entries missing contextWindow: ${JSON.stringify(result.modelUsage)}`);
+	assert.ok(
+		entries.every((usage) => typeof usage.contextWindow === "number"),
+		`modelUsage entries missing contextWindow: ${JSON.stringify(result.modelUsage)}`,
+	);
 });
 
 // --- Streaming ---
 
-test("includePartialMessages yields the stream_event shapes processStreamEvent destructures", { timeout: 120_000 }, async () => {
+test("includePartialMessages yields the stream_event shapes processStreamEvent destructures", {
+	timeout: 120_000,
+}, async () => {
 	const events = new Set();
 	const contentBlocks = new Set();
 	const deltas = new Set();
 	const calls = [];
 	for await (const message of query({
 		prompt: "Think briefly about what 17 * 23 is, then call the alpha tool once, then state the number.",
-		options: providerOptions({ includePartialMessages: true, effort: "medium", mcpServers: toolServer([noArgTool("alpha")], calls) }),
+		options: providerOptions({
+			includePartialMessages: true,
+			effort: "medium",
+			mcpServers: toolServer([noArgTool("alpha")], calls),
+		}),
 	})) {
 		if (message.type !== "stream_event") continue;
 		const event = message.event;
@@ -236,7 +288,14 @@ test("includePartialMessages yields the stream_event shapes processStreamEvent d
 		if (event?.delta?.type) deltas.add(event.delta.type);
 	}
 
-	for (const type of ["message_start", "message_delta", "message_stop", "content_block_start", "content_block_delta", "content_block_stop"]) {
+	for (const type of [
+		"message_start",
+		"message_delta",
+		"message_stop",
+		"content_block_start",
+		"content_block_delta",
+		"content_block_stop",
+	]) {
 		assert.ok(events.has(type), `no ${type} stream_event arrived — got ${JSON.stringify([...events])}`);
 	}
 	for (const type of ["text", "thinking", "tool_use"]) {
@@ -247,14 +306,18 @@ test("includePartialMessages yields the stream_event shapes processStreamEvent d
 	}
 });
 
-test("a streamed prompt keeps the query open past result until the input generator ends", { timeout: 120_000 }, async () => {
+test("a streamed prompt keeps the query open past result until the input generator ends", {
+	timeout: 120_000,
+}, async () => {
 	// Passing an AsyncIterable makes isSingleUserTurn false, so the SDK no longer
 	// closes the CLI's stdin on the first result. That parked generator is what
 	// lets deliverToolResults write a steer mid-turn — and is why consumeQuery
 	// must call promptStream.end() itself or the query never terminates.
 	const HOLD_MS = 5_000;
 	let release;
-	const held = new Promise((resolve) => { release = resolve; });
+	const held = new Promise((resolve) => {
+		release = resolve;
+	});
 	async function* prompt() {
 		yield { type: "user", message: { role: "user", content: "Reply with just: OK" }, parent_tool_use_id: null };
 		await held;
@@ -273,8 +336,10 @@ test("a streamed prompt keeps the query open past result until the input generat
 	exitAt = Date.now() - started;
 
 	assert.ok(resultAt !== null, "no result message arrived");
-	assert.ok(exitAt - resultAt >= HOLD_MS * 0.8,
-		`the SDK closed stdin on its own ${exitAt - resultAt}ms after result — a streamed prompt no longer parks the query, so steering is dead`);
+	assert.ok(
+		exitAt - resultAt >= HOLD_MS * 0.8,
+		`the SDK closed stdin on its own ${exitAt - resultAt}ms after result — a streamed prompt no longer parks the query, so steering is dead`,
+	);
 });
 
 // --- The in-process MCP server ---
@@ -295,11 +360,16 @@ test("the SDK treats our McpServer as an opaque endpoint — it only calls conne
 		},
 	});
 
-	await collect(query({ prompt: "Call the alpha tool once, then stop.", options: providerOptions({ mcpServers: servers }) }));
+	await collect(
+		query({ prompt: "Call the alpha tool once, then stop.", options: providerOptions({ mcpServers: servers }) }),
+	);
 
 	assert.ok(calls.length > 0, "no tool call happened — the proxy was never exercised");
-	assert.deepEqual([...touched], ["connect"],
-		`the SDK now inspects the McpServer instance beyond connect(): ${JSON.stringify([...touched])}`);
+	assert.deepEqual(
+		[...touched],
+		["connect"],
+		`the SDK now inspects the McpServer instance beyond connect(): ${JSON.stringify([...touched])}`,
+	);
 });
 
 test("JSON Schema is served verbatim — nested objects and anyOf/const survive", { timeout: 120_000 }, async () => {
@@ -314,7 +384,11 @@ test("JSON Schema is served verbatim — nested objects and anyOf/const survive"
 				type: "object",
 				properties: {
 					path: { type: "string" },
-					replacement: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } }, required: ["from", "to"] },
+					replacement: {
+						type: "object",
+						properties: { from: { type: "string" }, to: { type: "string" } },
+						required: ["from", "to"],
+					},
 				},
 				required: ["path", "replacement"],
 			},
@@ -322,14 +396,22 @@ test("JSON Schema is served verbatim — nested objects and anyOf/const survive"
 		},
 		required: ["edit"],
 	};
-	await collect(query({
-		prompt: "Call apply_edit with edit.path='a.txt', edit.replacement.from='X', edit.replacement.to='Y', kind='fast'.",
-		options: providerOptions({ mcpServers: toolServer([{ name: "apply_edit", description: "Apply a structured edit.", inputSchema }], calls) }),
-	}));
+	await collect(
+		query({
+			prompt:
+				"Call apply_edit with edit.path='a.txt', edit.replacement.from='X', edit.replacement.to='Y', kind='fast'.",
+			options: providerOptions({
+				mcpServers: toolServer([{ name: "apply_edit", description: "Apply a structured edit.", inputSchema }], calls),
+			}),
+		}),
+	);
 
 	assert.equal(calls.length, 1, `expected one apply_edit call, got ${calls.length}`);
-	assert.deepEqual(calls[0].args, { edit: { path: "a.txt", replacement: { from: "X", to: "Y" } }, kind: "fast" },
-		"the nested schema did not reach the model intact");
+	assert.deepEqual(
+		calls[0].args,
+		{ edit: { path: "a.txt", replacement: { from: "X", to: "Y" } }, kind: "fast" },
+		"the nested schema did not reach the model intact",
+	);
 });
 
 // --- Session transcripts and --resume ---
@@ -339,7 +421,12 @@ test("--resume re-reads the JSONL from disk on every call", { timeout: 180_000 }
 	// keeps the same UUID. That is only correct if CC caches nothing by UUID.
 	const sessionId = randomUUID();
 	const seed = (token) => {
-		const session = createSession({ sessionId, projectPath: CWD, claudeDir: process.env.CLAUDE_CONFIG_DIR, model: MODEL });
+		const session = createSession({
+			sessionId,
+			projectPath: CWD,
+			claudeDir: process.env.CLAUDE_CONFIG_DIR,
+			model: MODEL,
+		});
 		session.clear();
 		session.addUserMessage(`Please remember: the token is ${token}.`);
 		session.addAssistantMessage([{ type: "text", text: `Got it, the token is ${token}.` }]);
@@ -349,9 +436,17 @@ test("--resume re-reads the JSONL from disk on every call", { timeout: 180_000 }
 		const answers = [];
 		for await (const message of query({
 			prompt: "What token did I ask you to remember? Reply with just the word.",
-			options: { resume: sessionId, model: MODEL, cwd: CWD, permissionMode: "bypassPermissions", tools: [], maxTurns: 2 },
+			options: {
+				resume: sessionId,
+				model: MODEL,
+				cwd: CWD,
+				permissionMode: "bypassPermissions",
+				tools: [],
+				maxTurns: 2,
+			},
 		})) {
-			if (message.type === "assistant") for (const block of message.message?.content ?? []) if (block.type === "text") answers.push(block.text);
+			if (message.type === "assistant")
+				for (const block of message.message?.content ?? []) if (block.type === "text") answers.push(block.text);
 		}
 		return answers.join("");
 	};
@@ -368,12 +463,25 @@ test("arbitrary sanitized tool_use ids in an imported transcript resume fine", {
 	// convert.ts sanitizeToolId only strips characters outside [A-Za-z0-9_-]; the
 	// result keeps pi's own id shape rather than CC's toolu_* form.
 	const sessionId = randomUUID();
-	const session = createSession({ sessionId, projectPath: CWD, claudeDir: process.env.CLAUDE_CONFIG_DIR, model: MODEL });
-	session.importMessages(repairToolPairing([
-		{ role: "user", content: "Read the vault file." },
-		{ role: "assistant", content: [{ type: "tool_use", id: "pi_call_0__weird", name: "Read", input: { file_path: "/tmp/vault.txt" } }] },
-		{ role: "user", content: [{ type: "tool_result", tool_use_id: "pi_call_0__weird", content: "The vault code is PLATYPUS." }] },
-	]));
+	const session = createSession({
+		sessionId,
+		projectPath: CWD,
+		claudeDir: process.env.CLAUDE_CONFIG_DIR,
+		model: MODEL,
+	});
+	session.importMessages(
+		repairToolPairing([
+			{ role: "user", content: "Read the vault file." },
+			{
+				role: "assistant",
+				content: [{ type: "tool_use", id: "pi_call_0__weird", name: "Read", input: { file_path: "/tmp/vault.txt" } }],
+			},
+			{
+				role: "user",
+				content: [{ type: "tool_result", tool_use_id: "pi_call_0__weird", content: "The vault code is PLATYPUS." }],
+			},
+		]),
+	);
 	session.save();
 
 	let answer = "";
@@ -381,7 +489,8 @@ test("arbitrary sanitized tool_use ids in an imported transcript resume fine", {
 		prompt: "What was the vault code from the file you read? One word.",
 		options: { resume: sessionId, model: MODEL, cwd: CWD, permissionMode: "bypassPermissions", tools: [], maxTurns: 2 },
 	})) {
-		if (message.type === "assistant") for (const block of message.message?.content ?? []) if (block.type === "text") answer += block.text;
+		if (message.type === "assistant")
+			for (const block of message.message?.content ?? []) if (block.type === "text") answer += block.text;
 	}
 	assert.match(answer, /platypus/i, `CC did not resume a transcript with non-toolu_ ids: ${answer}`);
 });
@@ -393,20 +502,37 @@ test("CC writes each tool result of a parallel turn as its own transcript record
 	// content block. The single-message shape convertPiMessages emits is a
 	// requirement of repairToolPairing (next test), not a copy of what CC writes.
 	const calls = [];
-	const { init } = await collect(query({
-		prompt: "Call both the alpha tool and the beta tool at the same time, in a single assistant message with two parallel tool calls. Then report both values.",
-		options: providerOptions({ mcpServers: toolServer([noArgTool("alpha"), noArgTool("beta")], calls) }),
-	}));
+	const { init } = await collect(
+		query({
+			prompt:
+				"Call both the alpha tool and the beta tool at the same time, in a single assistant message with two parallel tool calls. Then report both values.",
+			options: providerOptions({ mcpServers: toolServer([noArgTool("alpha"), noArgTool("beta")], calls) }),
+		}),
+	);
 	assert.equal(calls.length, 2, `expected two parallel tool calls, got ${calls.length}`);
 
-	const jsonlPath = openSession({ sessionId: init.session_id, projectPath: CWD, claudeDir: process.env.CLAUDE_CONFIG_DIR }).jsonlPath;
-	const records = readFileSync(jsonlPath, "utf8").trim().split("\n").map((line) => JSON.parse(line));
+	const jsonlPath = openSession({
+		sessionId: init.session_id,
+		projectPath: CWD,
+		claudeDir: process.env.CLAUDE_CONFIG_DIR,
+	}).jsonlPath;
+	const records = readFileSync(jsonlPath, "utf8")
+		.trim()
+		.split("\n")
+		.map((line) => JSON.parse(line));
 	const perRecord = records
-		.map((record) => (Array.isArray(record.message?.content) ? record.message.content.filter((b) => b.type === "tool_result").length : 0))
+		.map((record) =>
+			Array.isArray(record.message?.content)
+				? record.message.content.filter((b) => b.type === "tool_result").length
+				: 0,
+		)
 		.filter((count) => count > 0);
 
-	assert.deepEqual(perRecord, [1, 1],
-		`CC's transcript layout for parallel results changed: ${JSON.stringify(perRecord)}`);
+	assert.deepEqual(
+		perRecord,
+		[1, 1],
+		`CC's transcript layout for parallel results changed: ${JSON.stringify(perRecord)}`,
+	);
 });
 
 test("repairToolPairing keeps every result only when they share one user message", { timeout: 30_000 }, () => {
@@ -414,18 +540,34 @@ test("repairToolPairing keeps every result only when they share one user message
 	// Session.importMessages runs this unconditionally, so it cannot be opted out
 	// of: split across messages, all but one result is replaced by a placeholder.
 	const ids = ["t1", "t2", "t3"];
-	const assistant = { role: "assistant", content: ids.map((id) => ({ type: "tool_use", id, name: "Read", input: {} })) };
+	const assistant = {
+		role: "assistant",
+		content: ids.map((id) => ({ type: "tool_use", id, name: "Read", input: {} })),
+	};
 	const resultsOf = (messages) =>
-		repairToolPairing(messages).flatMap((m) => (Array.isArray(m.content) ? m.content.filter((b) => b.type === "tool_result") : [])).map((b) => b.content);
+		repairToolPairing(messages)
+			.flatMap((m) => (Array.isArray(m.content) ? m.content.filter((b) => b.type === "tool_result") : []))
+			.map((b) => b.content);
 
-	const split = resultsOf([{ role: "user", content: "go" }, assistant,
-		...ids.map((id) => ({ role: "user", content: [{ type: "tool_result", tool_use_id: id, content: `RESULT-${id}` }] }))]);
-	const single = resultsOf([{ role: "user", content: "go" }, assistant,
-		{ role: "user", content: ids.map((id) => ({ type: "tool_result", tool_use_id: id, content: `RESULT-${id}` })) }]);
+	const split = resultsOf([
+		{ role: "user", content: "go" },
+		assistant,
+		...ids.map((id) => ({
+			role: "user",
+			content: [{ type: "tool_result", tool_use_id: id, content: `RESULT-${id}` }],
+		})),
+	]);
+	const single = resultsOf([
+		{ role: "user", content: "go" },
+		assistant,
+		{ role: "user", content: ids.map((id) => ({ type: "tool_result", tool_use_id: id, content: `RESULT-${id}` })) },
+	]);
 
 	assert.deepEqual(single, ["RESULT-t1", "RESULT-t2", "RESULT-t3"]);
-	assert.ok(split.some((content) => !String(content).startsWith("RESULT-")),
-		`repairToolPairing now tolerates split results (${JSON.stringify(split)}) — convertPiMessages could stop collecting them`);
+	assert.ok(
+		split.some((content) => !String(content).startsWith("RESULT-")),
+		`repairToolPairing now tolerates split results (${JSON.stringify(split)}) — convertPiMessages could stop collecting them`,
+	);
 });
 
 // --- Environment suppression ---
@@ -437,16 +579,33 @@ test("ENABLE_CLAUDEAI_MCP_SERVERS=0 suppresses claude.ai cloud MCP servers", { t
 	delete withoutVar.ENABLE_CLAUDEAI_MCP_SERVERS;
 	const isCloud = (server) => server.name.startsWith("claude.ai ");
 
-	const before = await initOnly({ cwd: CWD, model: MODEL, tools: [], permissionMode: "bypassPermissions", env: withoutVar, maxTurns: 1 });
+	const before = await initOnly({
+		cwd: CWD,
+		model: MODEL,
+		tools: [],
+		permissionMode: "bypassPermissions",
+		env: withoutVar,
+		maxTurns: 1,
+	});
 	const cloud = (before.mcp_servers ?? []).filter(isCloud);
 	if (cloud.length === 0) {
 		t.skip("no claude.ai cloud MCP servers configured for this account — nothing to suppress");
 		return;
 	}
 
-	const after = await initOnly({ cwd: CWD, model: MODEL, tools: [], permissionMode: "bypassPermissions", env: { ...withoutVar, ENABLE_CLAUDEAI_MCP_SERVERS: "0" }, maxTurns: 1 });
-	assert.deepEqual((after.mcp_servers ?? []).filter(isCloud), [],
-		`cloud MCP servers survived the env gate: ${JSON.stringify(after.mcp_servers)}`);
+	const after = await initOnly({
+		cwd: CWD,
+		model: MODEL,
+		tools: [],
+		permissionMode: "bypassPermissions",
+		env: { ...withoutVar, ENABLE_CLAUDEAI_MCP_SERVERS: "0" },
+		maxTurns: 1,
+	});
+	assert.deepEqual(
+		(after.mcp_servers ?? []).filter(isCloud),
+		[],
+		`cloud MCP servers survived the env gate: ${JSON.stringify(after.mcp_servers)}`,
+	);
 });
 
 test("--strict-mcp-config suppresses filesystem MCP servers", { timeout: 120_000 }, async (t) => {
@@ -460,8 +619,11 @@ test("--strict-mcp-config suppresses filesystem MCP servers", { timeout: 120_000
 	}
 
 	const after = await initOnly({ ...base, extraArgs: { "strict-mcp-config": null } });
-	assert.deepEqual(after.mcp_servers ?? [], [],
-		`filesystem MCP servers survived --strict-mcp-config: ${JSON.stringify(after.mcp_servers)}`);
+	assert.deepEqual(
+		after.mcp_servers ?? [],
+		[],
+		`filesystem MCP servers survived --strict-mcp-config: ${JSON.stringify(after.mcp_servers)}`,
+	);
 });
 
 test("--thinking-display summarized is still an accepted flag value", { timeout: 120_000 }, async () => {
@@ -469,9 +631,16 @@ test("--thinking-display summarized is still an accepted flag value", { timeout:
 	// liveness check: an invalid value makes the CLI exit 1 (`full` does), and on
 	// CC 2.1.141 the flag has no observable effect on which models stream
 	// thinking — haiku streams it without the flag, opus streams none with it.
-	const { result } = await collect(query({
-		prompt: "Reply with just: OK",
-		options: providerOptions({ effort: "medium", maxTurns: 1, persistSession: false, extraArgs: { "strict-mcp-config": null, "thinking-display": "summarized" } }),
-	}));
+	const { result } = await collect(
+		query({
+			prompt: "Reply with just: OK",
+			options: providerOptions({
+				effort: "medium",
+				maxTurns: 1,
+				persistSession: false,
+				extraArgs: { "strict-mcp-config": null, "thinking-display": "summarized" },
+			}),
+		}),
+	);
 	assert.equal(result?.subtype, "success", `CC rejected --thinking-display summarized: ${JSON.stringify(result)}`);
 });

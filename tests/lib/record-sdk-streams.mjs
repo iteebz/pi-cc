@@ -14,7 +14,7 @@
 // uuids. scrub() below strips that, keeping only the fields consumeQuery reads.
 // Never commit a fixture that has not been through it.
 
-import { mkdirSync, rmSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,14 +39,24 @@ const SCENARIOS = {
 	"single-tool": "Read the file one.txt and reply with exactly its contents, nothing else.",
 	// The shape that broke rebuilds: several tool_use blocks in one assistant
 	// message and several tool_result blocks in one user message.
-	"parallel-tools": "Read one.txt, two.txt and three.txt in a single parallel batch, then reply with the three contents separated by commas.",
+	"parallel-tools":
+		"Read one.txt, two.txt and three.txt in a single parallel batch, then reply with the three contents separated by commas.",
 };
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
 // Only the fields consumeQuery actually reads survive from system/init. Everything
 // else there is local configuration — slash_commands, agents, output style, the
 // real cwd — and describes this machine rather than the SDK's contract.
-const SYSTEM_INIT_KEEP = new Set(["type", "subtype", "session_id", "uuid", "model", "permissionMode", "mcp_servers", "tools"]);
+const SYSTEM_INIT_KEEP = new Set([
+	"type",
+	"subtype",
+	"session_id",
+	"uuid",
+	"model",
+	"permissionMode",
+	"mcp_servers",
+	"tools",
+]);
 
 function scrub(message, ids) {
 	const fake = (id) => {
@@ -56,14 +66,17 @@ function scrub(message, ids) {
 	const walk = (value) => {
 		// The home prefix, not just WORKDIR: the model narrates absolute paths inside
 		// thinking deltas, and a delta boundary can cut the path in half.
-		if (typeof value === "string") return value.replace(UUID, fake).replaceAll(WORKDIR, "/workdir").replaceAll(homedir(), "/home/user");
+		if (typeof value === "string")
+			return value.replace(UUID, fake).replaceAll(WORKDIR, "/workdir").replaceAll(homedir(), "/home/user");
 		if (Array.isArray(value)) return value.map(walk);
-		if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v)]));
+		if (value && typeof value === "object")
+			return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, walk(v)]));
 		return value;
 	};
-	const kept = message.type === "system" && message.subtype === "init"
-		? Object.fromEntries(Object.entries(message).filter(([k]) => SYSTEM_INIT_KEEP.has(k)))
-		: message;
+	const kept =
+		message.type === "system" && message.subtype === "init"
+			? Object.fromEntries(Object.entries(message).filter(([k]) => SYSTEM_INIT_KEEP.has(k)))
+			: message;
 	return walk(kept);
 }
 
@@ -95,13 +108,16 @@ for (const name of chosen) {
 	try {
 		const text = await harness.promptAndWait(prompt, 180_000);
 		const ids = new Map();
-		const messages = readFileSync(raw, "utf8").split("\n").filter(Boolean)
+		const messages = readFileSync(raw, "utf8")
+			.split("\n")
+			.filter(Boolean)
 			.map((line) => scrub(JSON.parse(line), ids));
-		const body = messages.map((m) => JSON.stringify(m)).join("\n") + "\n";
+		const body = `${messages.map((m) => JSON.stringify(m)).join("\n")}\n`;
 		// A delta can split the home path so no string replacement sees it whole.
 		// Refuse to write rather than commit a fixture carrying the username.
 		const user = homedir().split("/").filter(Boolean).pop();
-		if (user && body.includes(user)) throw new Error(`${name}: "${user}" survived scrubbing — inspect ${raw} and re-run`);
+		if (user && body.includes(user))
+			throw new Error(`${name}: "${user}" survived scrubbing — inspect ${raw} and re-run`);
 		writeFileSync(target, body);
 		console.log(`${name}: ${messages.length} messages recorded — ${text.trim().slice(0, 60)}`);
 	} finally {

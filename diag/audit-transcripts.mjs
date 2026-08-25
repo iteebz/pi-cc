@@ -21,7 +21,7 @@
 //
 // See diag/AUDIT.md for baselines and the known-benign patterns.
 
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 
@@ -32,7 +32,10 @@ const MARKERS = [
 	"[no tool result recorded]",
 	"[incompatible content omitted]",
 	"[orphaned tool result removed]",
-	"[empty]", "[image]", "[document]", "[thinking]",
+	"[empty]",
+	"[image]",
+	"[document]",
+	"[thinking]",
 ];
 
 const args = process.argv.slice(2);
@@ -42,7 +45,8 @@ if (Number.isNaN(since)) {
 	console.error("--since needs a parseable date, e.g. --since 2026-07-29");
 	process.exit(2);
 }
-const target = args.filter((a, i) => !a.startsWith("--") && i !== sinceArg + 1)[0] ?? join(homedir(), ".claude/projects");
+const target =
+	args.filter((a, i) => !a.startsWith("--") && i !== sinceArg + 1)[0] ?? join(homedir(), ".claude/projects");
 const inWindow = (ts) => since === null || (ts !== null && ts >= since);
 
 // Test harnesses run in temp dirs and deliberately produce aborted turns and
@@ -61,7 +65,9 @@ function collect(path) {
 		try {
 			if (statSync(p).isDirectory()) out.push(...collect(p));
 			else if (entry.endsWith(".jsonl")) out.push(p);
-		} catch { /* races with CC writing; skip */ }
+		} catch {
+			/* races with CC writing; skip */
+		}
 	}
 	return out;
 }
@@ -77,15 +83,23 @@ function logicalMessages(records) {
 		const msg = r.message ?? {};
 		const content = Array.isArray(msg.content)
 			? msg.content
-			: typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : [];
+			: typeof msg.content === "string"
+				? [{ type: "text", text: msg.content }]
+				: [];
 		const last = out.at(-1);
 		const ts = Date.parse(r.timestamp ?? "") || null;
 		if (r.type === "assistant") {
 			const synthetic = String(msg.id ?? "").startsWith("msg_syn_") || String(r.requestId ?? "").startsWith("req_syn_");
-			if (last?.role === "assistant" && last.id === msg.id) { last.content.push(...content); continue; }
+			if (last?.role === "assistant" && last.id === msg.id) {
+				last.content.push(...content);
+				continue;
+			}
 			out.push({ role: "assistant", id: msg.id, line: r.__line, ts, content: [...content], synthetic });
 		} else {
-			if (last?.role === "user") { last.content.push(...content); continue; }
+			if (last?.role === "user") {
+				last.content.push(...content);
+				continue;
+			}
 			out.push({ role: "user", id: null, line: r.__line, ts, content: [...content], synthetic: null });
 		}
 	}
@@ -97,30 +111,45 @@ function scanFile(file) {
 	const markers = new Map();
 	let records;
 	try {
-		records = readFileSync(file, "utf8").split("\n").flatMap((line, i) => {
-			if (!line.trim()) return [];
-			try { const r = JSON.parse(line); r.__line = i + 1; return [r]; } catch { return []; }
-		});
-	} catch { return null; }
+		records = readFileSync(file, "utf8")
+			.split("\n")
+			.flatMap((line, i) => {
+				if (!line.trim()) return [];
+				try {
+					const r = JSON.parse(line);
+					r.__line = i + 1;
+					return [r];
+				} catch {
+					return [];
+				}
+			});
+	} catch {
+		return null;
+	}
 
 	const msgs = logicalMessages(records);
 	if (!msgs.length) return { defects, markers, bridgeRecords: 0, ccRecords: 0 };
 
 	let msgTs = null;
 	const add = (kind, line, detail) => defects.push({ kind, line, detail, ts: msgTs });
-	const text = (v) => typeof v === "string" ? v
-		: Array.isArray(v) ? v.map((b) => (b && typeof b === "object" ? b.text ?? "" : "")).join("") : "";
+	const text = (v) =>
+		typeof v === "string"
+			? v
+			: Array.isArray(v)
+				? v.map((b) => (b && typeof b === "object" ? (b.text ?? "") : "")).join("")
+				: "";
 
 	let pending = new Map(); // tool_use id -> {line, name} awaiting a result
 	const seen = new Set();
-	let bridgeRecords = 0, ccRecords = 0;
+	let bridgeRecords = 0,
+		ccRecords = 0;
 
 	for (const m of msgs) {
 		msgTs = m.ts;
 		if (m.role === "assistant") m.synthetic ? bridgeRecords++ : ccRecords++;
 		for (const b of m.content) {
 			if (!b || typeof b !== "object") continue;
-			const body = b.type === "tool_result" ? text(b.content) : b.type === "text" ? b.text ?? "" : "";
+			const body = b.type === "tool_result" ? text(b.content) : b.type === "text" ? (b.text ?? "") : "";
 			for (const marker of MARKERS) {
 				// Substring-match only on short bodies: the full marker text appears
 				// inside tool output whenever someone greps for it, and an unguarded
@@ -166,8 +195,12 @@ function scanFile(file) {
 
 function run() {
 	let files;
-	try { files = collect(target); }
-	catch (err) { console.error(`cannot read ${target}: ${err.message}`); process.exit(2); }
+	try {
+		files = collect(target);
+	} catch (err) {
+		console.error(`cannot read ${target}: ${err.message}`);
+		process.exit(2);
+	}
 
 	const totals = { real: new Map(), test: new Map() };
 	const markerTotals = { real: new Map(), test: new Map() };
@@ -180,7 +213,14 @@ function run() {
 		if (!res) continue;
 		scanned++;
 		const bucket = isTestPath(file) ? "test" : "real";
-		const cls = res.bridgeRecords && res.ccRecords ? "mixed" : res.bridgeRecords ? "bridge-written" : res.ccRecords ? "cc-authored" : "no assistant records";
+		const cls =
+			res.bridgeRecords && res.ccRecords
+				? "mixed"
+				: res.bridgeRecords
+					? "bridge-written"
+					: res.ccRecords
+						? "cc-authored"
+						: "no assistant records";
 		classes.set(cls, (classes.get(cls) ?? 0) + 1);
 		for (const d of res.defects) {
 			const [dt, dr] = totals[bucket].get(d.kind) ?? [0, 0];
@@ -197,7 +237,9 @@ function run() {
 	}
 
 	console.log(`target:  ${target}`);
-	console.log(`scanned: ${scanned} transcripts${since === null ? "" : `, exit code covers records since ${new Date(since).toISOString().slice(0, 10)}`}`);
+	console.log(
+		`scanned: ${scanned} transcripts${since === null ? "" : `, exit code covers records since ${new Date(since).toISOString().slice(0, 10)}`}`,
+	);
 	for (const [k, v] of classes) console.log(`  ${String(v).padStart(5)}  ${k}`);
 
 	for (const bucket of ["real", "test"]) {
@@ -205,7 +247,8 @@ function run() {
 		console.log(`\n${label}`);
 		console.log("  loss markers:");
 		const ms = [...markerTotals[bucket]].sort((a, b) => b[1][0] - a[1][0]);
-		for (const [m, [t, r]] of ms) console.log(`    ${String(t).padStart(6)}  ${m}${since === null ? "" : `   (${r} in window)`}`);
+		for (const [m, [t, r]] of ms)
+			console.log(`    ${String(t).padStart(6)}  ${m}${since === null ? "" : `   (${r} in window)`}`);
 		if (!ms.length) console.log("    none");
 		console.log("  structural defects:");
 		const ds = [...totals[bucket]].sort((a, b) => b[1][0] - a[1][0]);
@@ -221,7 +264,10 @@ function run() {
 	const realMarkers = [...markerTotals.real.values()].reduce((a, b) => a + b[idx], 0);
 	const window = since === null ? "" : ` since ${new Date(since).toISOString().slice(0, 10)}`;
 	console.log();
-	if (realDefects || realMarkers) console.log(`FAIL: ${realDefects} structural defect(s) and ${realMarkers} loss marker(s) in non-test transcripts${window}`);
+	if (realDefects || realMarkers)
+		console.log(
+			`FAIL: ${realDefects} structural defect(s) and ${realMarkers} loss marker(s) in non-test transcripts${window}`,
+		);
 	else console.log(`OK: no structural defects or loss markers in non-test transcripts${window}`);
 	process.exit(realDefects || realMarkers ? 1 : 0);
 }

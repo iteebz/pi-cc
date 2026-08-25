@@ -1,12 +1,13 @@
 /**
  * Regression tests for syncSharedSession's session reuse decisions.
  */
-import { describe, it, afterEach } from "node:test";
+
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, it } from "node:test";
 import { createSession, deleteSession, openSession } from "cc-session-io";
 
 const { getSharedSession, setSharedSession, syncSharedSession } = await import("../src/session.js");
@@ -34,13 +35,16 @@ describe("syncSharedSession", () => {
 			};
 			setSharedSession(mainSession);
 
-			const result = syncSharedSession([
-				{
-					role: "user",
-					content: "Summarize this conversation.",
-					timestamp: Date.now(),
-				},
-			], cwd);
+			const result = syncSharedSession(
+				[
+					{
+						role: "user",
+						content: "Summarize this conversation.",
+						timestamp: Date.now(),
+					},
+				],
+				cwd,
+			);
 
 			assert.equal(
 				result.sessionId,
@@ -75,25 +79,30 @@ describe("syncSharedSession", () => {
 					{ role: "assistant", content: [{ type: "text", text: "Noted." }] },
 				],
 				{
-					attachments: [{
-						afterIndex: 0,
-						attachment: {
-							type: "file",
-							filename: join(cwd, "fixture.txt"),
-							content: { type: "text", file: { filePath: join(cwd, "fixture.txt"), content: "token" } },
+					attachments: [
+						{
+							afterIndex: 0,
+							attachment: {
+								type: "file",
+								filename: join(cwd, "fixture.txt"),
+								content: { type: "text", file: { filePath: join(cwd, "fixture.txt"), content: "token" } },
+							},
 						},
-					}],
+					],
 				},
 			);
 			seeded.save();
 
 			setSharedSession({ sessionId, cursor: 0, cwd });
 			setUI({ notify: (message) => notices.push(message) });
-			syncSharedSession([
-				{ role: "user", content: prompt, timestamp: Date.now() },
-				{ role: "assistant", content: [{ type: "text", text: "Noted." }], timestamp: Date.now() },
-				{ role: "user", content: "Now what did it say?", timestamp: Date.now() },
-			], cwd);
+			syncSharedSession(
+				[
+					{ role: "user", content: prompt, timestamp: Date.now() },
+					{ role: "assistant", content: [{ type: "text", text: "Noted." }], timestamp: Date.now() },
+					{ role: "user", content: "Now what did it say?", timestamp: Date.now() },
+				],
+				cwd,
+			);
 
 			assert.equal(
 				openSession({ sessionId, projectPath: cwd }).attachments.length,

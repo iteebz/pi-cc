@@ -5,23 +5,39 @@
 //   convert · session · turn · tools · stream · summary · prompt-capture
 //   config · models · skills · mcp-server · query-state · ui · debug
 
+import { type EffortLevel, query } from "@anthropic-ai/claude-agent-sdk";
 import type { AssistantMessageEventStream, Context, Model, SimpleStreamOptions } from "@earendil-works/pi-ai";
 import { getModels } from "@earendil-works/pi-ai/compat";
-import { compact, generateBranchSummary, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { query, type EffortLevel } from "@anthropic-ai/claude-agent-sdk";
-import { CC_CHILD_ENV, CLAUDE_MD_EXCLUDES, claudeCodeSettings, hostedTools, loadConfig, type Config } from "./config.js";
+import { compact, type ExtensionAPI, generateBranchSummary } from "@earendil-works/pi-coding-agent";
+import {
+	CC_CHILD_ENV,
+	CLAUDE_MD_EXCLUDES,
+	type Config,
+	claudeCodeSettings,
+	hostedTools,
+	loadConfig,
+} from "./config.js";
 import { PROVIDER_ID } from "./convert.js";
 import { debug, diagDump, errorMessage, makeCliDebugOptions, moduleInstanceId } from "./debug.js";
 import { buildModels } from "./models.js";
+import { PromptCaptures, projectPromptCapture } from "./prompt-capture.js";
 import { makePromptStream, userMessage } from "./prompt-stream.js";
-import { projectPromptCapture, PromptCaptures } from "./prompt-capture.js";
 import { activeQueryContexts, contextForToolResults, ctx, QueryContext, reportLeaks } from "./query-state.js";
 import {
-	clearSharedSession, discardEphemeralSession, getSharedSession, markAborted, markNeedsRebuild,
-	setCursor, setSharedSession, syncSharedSession,
+	clearSharedSession,
+	discardEphemeralSession,
+	getSharedSession,
+	markAborted,
+	markNeedsRebuild,
+	setCursor,
+	setSharedSession,
+	syncSharedSession,
 } from "./session.js";
 import {
-	claimCurrentPiStream, consumeQuery, finalizeCurrentStream, markStreamComplete,
+	claimCurrentPiStream,
+	consumeQuery,
+	finalizeCurrentStream,
+	markStreamComplete,
 	newAssistantMessageEventStream,
 } from "./stream.js";
 import { branchSummaryOutcome, isolatedStreamFn, reinjectPriorCompactionFileOps } from "./summary.js";
@@ -48,22 +64,34 @@ const promptCaptures = new PromptCaptures();
 // Pi reasoning levels → CC SDK effort levels. Fallback for models pi-ai ships
 // no thinkingLevelMap for.
 const REASONING_TO_EFFORT: Record<string, EffortLevel> = {
-	minimal: "low", low: "low", medium: "medium", high: "high", xhigh: "max",
+	minimal: "low",
+	low: "low",
+	medium: "medium",
+	high: "high",
+	xhigh: "max",
 };
 
 /** Provider entry point. Pi calls this for each new prompt and each tool result.
  *  Two cases: tool result delivery (active query) or fresh query. */
-function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: SimpleStreamOptions): AssistantMessageEventStream {
+function streamClaudeAgentSdk(
+	model: Model<any>,
+	context: Context,
+	options?: SimpleStreamOptions,
+): AssistantMessageEventStream {
 	const stream = newAssistantMessageEventStream();
 
 	const lastMsgRole = context.messages[context.messages.length - 1]?.role;
-	debug(`provider: streamClaudeAgentSdk called, activeQuery=${!!ctx().activeQuery}, lastMsgRole=${lastMsgRole}, isReentrant=${ctx().activeQuery !== null}`);
+	debug(
+		`provider: streamClaudeAgentSdk called, activeQuery=${!!ctx().activeQuery}, lastMsgRole=${lastMsgRole}, isReentrant=${ctx().activeQuery !== null}`,
+	);
 
 	const activeQuery = ctx().activeQuery !== null;
 	const allResults = activeQueryContexts.size > 0 ? extractAllToolResults(context) : [];
 	const resultCtx = allResults.length > 0 ? contextForToolResults(allResults) : undefined;
 	if (activeQuery && lastMsgRole === "user" && allResults.length === 0) {
-		debug(`provider: active query user-only call treated as reentrant fresh query, waitingHandlers=${ctx().pendingToolCalls.size}, ctx.msgs=${context.messages.length}`);
+		debug(
+			`provider: active query user-only call treated as reentrant fresh query, waitingHandlers=${ctx().pendingToolCalls.size}, ctx.msgs=${context.messages.length}`,
+		);
 	}
 
 	// --- Tool result delivery ---
@@ -161,7 +189,8 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 	// first result — consumeQuery ends the stream explicitly instead, or the
 	// query would never terminate.
 	const promptStream = makePromptStream();
-	void promptStream.push(userMessage(promptBlocks ?? [{ type: "text", text: promptText }]))
+	void promptStream
+		.push(userMessage(promptBlocks ?? [{ type: "text", text: promptText }]))
 		.catch((error) => debug(`provider: initial prompt push rejected:`, error));
 	queryCtx.promptStream = promptStream;
 	const mcpServers = buildMcpServers(mcpTools, queryCtx);
@@ -175,8 +204,8 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 	// pi-ai 0.72+ ships per-model overrides (e.g. opus-4-7 wants xhigh→xhigh,
 	// not xhigh→max); our table covers older pi-ai and unmapped levels.
 	const effort = options?.reasoning
-		? ((model as any).thinkingLevelMap?.[options.reasoning] as EffortLevel | undefined)
-			?? REASONING_TO_EFFORT[options.reasoning]
+		? (((model as any).thinkingLevelMap?.[options.reasoning] as EffortLevel | undefined) ??
+			REASONING_TO_EFFORT[options.reasoning])
 		: undefined;
 
 	const extraArgs: Record<string, string | null> = { model: model.id };
@@ -203,15 +232,19 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 		...(effort ? { effort } : {}),
 		...(mcpServers ? { mcpServers } : {}),
 		...(resumeSessionId ? { resume: resumeSessionId } : {}),
-		...(providerSettings.pathToClaudeCodeExecutable ? { pathToClaudeCodeExecutable: providerSettings.pathToClaudeCodeExecutable } : {}),
+		...(providerSettings.pathToClaudeCodeExecutable
+			? { pathToClaudeCodeExecutable: providerSettings.pathToClaudeCodeExecutable }
+			: {}),
 		...makeCliDebugOptions("provider"),
 	};
 
-	debug("provider: fresh query",
+	debug(
+		"provider: fresh query",
 		`model=${model.id} msgs=${context.messages.length} tools=${mcpTools.length}`,
 		`resume=${resumeSessionId?.slice(0, 8) ?? "none"} effort=${effort ?? "default"}`,
 		`ctxFiles=${promptCapture?.contextFiles.length ?? 0} strictMcp=${strictMcpConfigEnabled}`,
-		`prompt=${promptText.slice(0, 60)}${promptBlocks ? " [+images]" : ""}`);
+		`prompt=${promptText.slice(0, 60)}${promptBlocks ? " [+images]" : ""}`,
+	);
 
 	let wasAborted = false;
 	const sdkQuery = query({ prompt: promptStream.stream, options: queryOptions });
@@ -224,7 +257,9 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 		// interrupt() asks the CLI to stop gracefully; close() kills it immediately.
 		// Both are needed — interrupt alone lets the current API call finish.
 		void sdkQuery.interrupt().catch(() => {});
-		try { sdkQuery.close(); } catch {}
+		try {
+			sdkQuery.close();
+		} catch {}
 	};
 	if (options?.signal) {
 		if (options.signal.aborted) onAbort();
@@ -233,7 +268,9 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 
 	consumeQuery(sdkQuery, customToolNameToPi, model, () => wasAborted, queryCtx)
 		.then(({ capturedSessionId }) => {
-			debug(`provider: consumeQuery completed, stopReason=${queryCtx.turnOutput?.stopReason}, error=${queryCtx.turnOutput?.errorMessage}, aborted=${wasAborted}`);
+			debug(
+				`provider: consumeQuery completed, stopReason=${queryCtx.turnOutput?.stopReason}, error=${queryCtx.turnOutput?.errorMessage}, aborted=${wasAborted}`,
+			);
 
 			if (wasAborted || options?.signal?.aborted) {
 				markAborted();
@@ -280,7 +317,11 @@ function streamClaudeAgentSdk(model: Model<any>, context: Context, options?: Sim
 				queryCtx.activeQuery = null;
 			}
 			const stream = queryCtx.currentPiStream;
-			stream?.push({ type: "error", reason: (queryCtx.turnOutput?.stopReason ?? "error") as "aborted" | "error", error: queryCtx.turnOutput! });
+			stream?.push({
+				type: "error",
+				reason: (queryCtx.turnOutput?.stopReason ?? "error") as "aborted" | "error",
+				error: queryCtx.turnOutput!,
+			});
 			markStreamComplete(stream);
 			stream?.end();
 			queryCtx.currentPiStream = null;
@@ -340,7 +381,7 @@ export default function (pi: ExtensionAPI) {
 			custom: options?.customPrompt,
 			append: options?.appendSystemPrompt,
 			contextFiles: options?.contextFiles ?? [],
-			skills: hasRead ? options?.skills ?? [] : [],
+			skills: hasRead ? (options?.skills ?? []) : [],
 		});
 	});
 
@@ -353,14 +394,21 @@ export default function (pi: ExtensionAPI) {
 		if (ctx.model?.baseUrl !== "claude-bridge") return undefined;
 		debug(
 			`session_before_compact: takeover reason=${event.reason} willRetry=${event.willRetry} ` +
-			`isSplitTurn=${event.preparation.isSplitTurn} messages=${event.preparation.messagesToSummarize.length} ` +
-			`turnPrefix=${event.preparation.turnPrefixMessages.length}`,
+				`isSplitTurn=${event.preparation.isSplitTurn} messages=${event.preparation.messagesToSummarize.length} ` +
+				`turnPrefix=${event.preparation.turnPrefixMessages.length}`,
 		);
 		try {
 			reinjectPriorCompactionFileOps(event.branchEntries, event.preparation);
 			const compaction = await compact(
-				event.preparation, ctx.model, undefined, undefined,
-				event.customInstructions, event.signal, undefined, isolatedStreamFn, undefined,
+				event.preparation,
+				ctx.model,
+				undefined,
+				undefined,
+				event.customInstructions,
+				event.signal,
+				undefined,
+				isolatedStreamFn,
+				undefined,
 			);
 			debug(`session_before_compact: takeover complete summaryLen=${compaction.summary.length}`);
 			return { compaction };
@@ -389,15 +437,19 @@ export default function (pi: ExtensionAPI) {
 		if (ctx.model?.baseUrl !== "claude-bridge") return undefined;
 		const { entriesToSummarize, userWantsSummary, customInstructions, replaceInstructions } = event.preparation;
 		if (!userWantsSummary || entriesToSummarize.length === 0) return undefined;
-		debug(`session_before_tree: takeover entries=${entriesToSummarize.length} target=${event.preparation.targetId.slice(0, 8)}`);
+		debug(
+			`session_before_tree: takeover entries=${entriesToSummarize.length} target=${event.preparation.targetId.slice(0, 8)}`,
+		);
 		try {
-			return branchSummaryOutcome(await generateBranchSummary(entriesToSummarize, {
-				model: ctx.model,
-				signal: event.signal,
-				customInstructions,
-				replaceInstructions,
-				streamFn: isolatedStreamFn,
-			}));
+			return branchSummaryOutcome(
+				await generateBranchSummary(entriesToSummarize, {
+					model: ctx.model,
+					signal: event.signal,
+					customInstructions,
+					replaceInstructions,
+					streamFn: isolatedStreamFn,
+				}),
+			);
 		} catch (err) {
 			debug("session_before_tree: takeover failed; cancelling navigation", err);
 			ctx.ui?.notify?.(`Claude bridge branch summary failed (${errorMessage(err)}); navigation cancelled.`, "error");
@@ -423,4 +475,3 @@ export default function (pi: ExtensionAPI) {
 		debug(`provider: skipping re-registration, parent instance active (module=${moduleInstanceId})`);
 	}
 }
-

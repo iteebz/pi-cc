@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // Integration test: an `@file` expansion survives a session rebuild.
 //
 // Claude Code expands an at-mention itself and stores the file's contents as a
@@ -18,14 +19,14 @@
 //
 // Requires: ANTHROPIC_API_KEY or CC logged in.
 
-import { test } from "node:test";
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createSession, openSession, deleteSession } from "cc-session-io";
+import { test } from "node:test";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { createSession, deleteSession, openSession } from "cc-session-io";
 import { collectCarriedAttachments, placeCarriedAttachments } from "../src/attachments.js";
 
 const CWD = process.cwd();
@@ -51,8 +52,10 @@ function attachmentFor(dir) {
 /** The session as CC left it: prompt, attachment, reply. */
 function seedWithAttachment(sid, attachment) {
 	const session = createSession({
-		sessionId: sid, projectPath: CWD,
-		claudeDir: process.env.CLAUDE_CONFIG_DIR, model: MODEL,
+		sessionId: sid,
+		projectPath: CWD,
+		claudeDir: process.env.CLAUDE_CONFIG_DIR,
+		model: MODEL,
 	});
 	session.importMessages(
 		[
@@ -69,8 +72,10 @@ function seedWithAttachment(sid, attachment) {
 function rebuild(sid, carried) {
 	deleteSession(sid, CWD, process.env.CLAUDE_CONFIG_DIR);
 	const session = createSession({
-		sessionId: sid, projectPath: CWD,
-		claudeDir: process.env.CLAUDE_CONFIG_DIR, model: MODEL,
+		sessionId: sid,
+		projectPath: CWD,
+		claudeDir: process.env.CLAUDE_CONFIG_DIR,
+		model: MODEL,
 	});
 	const messages = [
 		{ role: "user", content: PROMPT },
@@ -115,8 +120,7 @@ test("an @file attachment survives a rebuild and reaches Claude", { timeout: 180
 		assert.equal(session.attachments.length, 1, "rebuilt session has no attachment");
 
 		const answer = await ask(sid);
-		assert.match(answer, new RegExp(TOKEN, "i"),
-			`Claude could not see the carried attachment. Answer: ${answer}`);
+		assert.match(answer, new RegExp(TOKEN, "i"), `Claude could not see the carried attachment. Answer: ${answer}`);
 	} finally {
 		deleteSession(sid, CWD, process.env.CLAUDE_CONFIG_DIR);
 		rmSync(dir, { recursive: true, force: true });
@@ -132,8 +136,11 @@ test("control: without the carry, the same rebuild loses it", { timeout: 180_000
 		assert.equal(session.attachments.length, 0, "control rebuild should carry nothing");
 
 		const answer = await ask(sid);
-		assert.doesNotMatch(answer, new RegExp(TOKEN, "i"),
-			`Control produced the token without the attachment — the positive test proves nothing. Answer: ${answer}`);
+		assert.doesNotMatch(
+			answer,
+			new RegExp(TOKEN, "i"),
+			`Control produced the token without the attachment — the positive test proves nothing. Answer: ${answer}`,
+		);
 	} finally {
 		deleteSession(sid, CWD, process.env.CLAUDE_CONFIG_DIR);
 		rmSync(dir, { recursive: true, force: true });

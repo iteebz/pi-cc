@@ -5,9 +5,9 @@
 import { spawn } from "node:child_process";
 import { createWriteStream, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { getClaudeDir } from "cc-session-io";
-import { fileURLToPath } from "node:url";
 import { StringDecoder } from "node:string_decoder";
+import { fileURLToPath } from "node:url";
+import { getClaudeDir } from "cc-session-io";
 
 const DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -61,7 +61,9 @@ export function createRpcHarness(opts) {
 	const DEBUG_LOG = `${LOGDIR}/${name}-debug.log`;
 
 	// Strip any local node_modules from PATH so we use the globally-installed `pi`.
-	const cleanPath = process.env.PATH.split(":").filter((p) => !p.includes("node_modules")).join(":");
+	const cleanPath = process.env.PATH.split(":")
+		.filter((p) => !p.includes("node_modules"))
+		.join(":");
 
 	let pi, rpcLog;
 	let stopped = false;
@@ -85,7 +87,9 @@ export function createRpcHarness(opts) {
 
 		// The killed subprocess can still flush buffered stdout/stderr after stop()
 		// has ended rpcLog; guard writes so teardown doesn't throw write-after-end.
-		pi.stderr.on("data", (d) => { if (!stopped) rpcLog.write(d); });
+		pi.stderr.on("data", (d) => {
+			if (!stopped) rpcLog.write(d);
+		});
 
 		const decoder = new StringDecoder("utf8");
 		pi.stdout.on("data", (chunk) => {
@@ -133,7 +137,7 @@ export function createRpcHarness(opts) {
 		const id = `req_${++reqId}`;
 		const full = { ...cmd, id };
 		rpcLog?.write(`> ${JSON.stringify(full)}\n`);
-		pi.stdin.write(JSON.stringify(full) + "\n");
+		pi.stdin.write(`${JSON.stringify(full)}\n`);
 		return new Promise((resolve, reject) => {
 			const timer = setTimeout(() => reject(new Error(`Timeout: ${cmd.type}`)), timeout);
 			const remove = addListener((msg) => {
@@ -180,7 +184,13 @@ export function createRpcHarness(opts) {
 			}
 		};
 		addListener(handler);
-		return { stop() { const i = listeners.indexOf(handler); if (i !== -1) listeners.splice(i, 1); return text; } };
+		return {
+			stop() {
+				const i = listeners.indexOf(handler);
+				if (i !== -1) listeners.splice(i, 1);
+				return text;
+			},
+		};
 	}
 
 	async function promptAndWait(message, timeout = defaultTimeout) {

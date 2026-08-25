@@ -41,17 +41,22 @@ if (Number.isNaN(since)) {
 // The log reaches back to April; without a window every historical warning keeps
 // the check red forever. Everything is still printed — only the exit narrows.
 const inWindow = (iso) => since === null || Date.parse(iso) >= since;
-const logPath = args.filter((a, i) => !a.startsWith("--") && i !== sinceArg + 1)[0]
-	?? join(homedir(), ".pi/agent/claude-bridge.log");
+const logPath =
+	args.filter((a, i) => !a.startsWith("--") && i !== sinceArg + 1)[0] ?? join(homedir(), ".pi/agent/claude-bridge.log");
 
 function run() {
 	let text;
-	try { text = readFileSync(logPath, "utf8"); }
-	catch (err) { console.error(`cannot read ${logPath}: ${err.message}`); process.exit(2); }
+	try {
+		text = readFileSync(logPath, "utf8");
+	} catch (err) {
+		console.error(`cannot read ${logPath}: ${err.message}`);
+		process.exit(2);
+	}
 
 	const notable = new Map();
 	const modules = new Map();
-	let anchored = 0, total = 0;
+	let anchored = 0,
+		total = 0;
 
 	for (const line of text.split("\n")) {
 		total++;
@@ -64,9 +69,13 @@ function run() {
 
 		if (NOTABLE.test(msg)) {
 			// Collapse ids/counts so repeats of the same condition group together.
-			const key = msg.replace(/\[[^\]]*\]/g, "[…]").replace(/\d+/g, "N").slice(0, 100);
+			const key = msg
+				.replace(/\[[^\]]*\]/g, "[…]")
+				.replace(/\d+/g, "N")
+				.slice(0, 100);
 			const rec = notable.get(key) ?? { n: 0, dates: new Set(), sample: `${date}T${time}Z [${moduleId}] ${msg}` };
-			rec.n++; rec.dates.add(date);
+			rec.n++;
+			rec.dates.add(date);
 			notable.set(key, rec);
 		}
 
@@ -104,7 +113,9 @@ function run() {
 	// expected outcome, not a bug: pi tore the turn down before delivering.
 	const show = (label, list) => {
 		const unexplained = list.filter((x) => !x.ended);
-		console.log(`\n${label}: ${list.length} (${list.length - unexplained.length} after an abort/shutdown, ${unexplained.length} unexplained)`);
+		console.log(
+			`\n${label}: ${list.length} (${list.length - unexplained.length} after an abort/shutdown, ${unexplained.length} unexplained)`,
+		);
 		for (const x of unexplained) console.log(`  ${x.ts} module=${x.moduleId} ${x.tool ?? ""} ${x.id}`);
 		return unexplained.filter((x) => inWindow(x.ts)).length;
 	};
@@ -115,7 +126,10 @@ function run() {
 	const bad = recentNotable + a + b;
 	console.log();
 	const window = since === null ? "" : ` since ${new Date(since).toISOString().slice(0, 10)}`;
-	if (bad) console.log(`FAIL: ${recentNotable} distinct WARNING/BUG condition(s), ${a} stranded handler(s), ${b} orphan result(s)${window}`);
+	if (bad)
+		console.log(
+			`FAIL: ${recentNotable} distinct WARNING/BUG condition(s), ${a} stranded handler(s), ${b} orphan result(s)${window}`,
+		);
 	else console.log(`OK: no WARNING/BUG lines and no stranded handlers or orphan results${window}`);
 	process.exit(bad ? 1 : 0);
 }

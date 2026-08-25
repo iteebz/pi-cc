@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // Two invariants on the session write path — convertPiMessages →
 // repairToolPairing → Session.importMessages:
 //
@@ -10,15 +11,15 @@
 //      mutation re-caches everything after it on the next rebuild — and means
 //      the same pi message converted differently depending on what followed.
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { repairToolPairing } from "cc-session-io";
-import { convertPiMessages } from "../src/convert.js";
 // Shared with diag/replay-write-path.mjs so the diagnostic and this test cannot
 // drift into disagreeing about what "stable" means.
 import { settledPrefixes, transcript } from "../diag/lib/write-path.mjs";
+import { convertPiMessages } from "../src/convert.js";
 
 function assertPrefix(shorter, longer, label) {
 	for (let i = 0; i < shorter.length; i++) {
@@ -32,34 +33,52 @@ function assertPrefix(shorter, longer, label) {
 // providers, thinking signatures, parallel calls — is verbatim, and structure is
 // all these invariants read.
 const corpus = readFileSync(fileURLToPath(new URL("./fixtures/pi-history-310.jsonl", import.meta.url)), "utf-8")
-	.split("\n").filter(Boolean).map((line) => JSON.parse(line));
+	.split("\n")
+	.filter(Boolean)
+	.map((line) => JSON.parse(line));
 
 // Parallel calls, a steer landing between their results, an image result, an
 // error result, empty content, exotic tool ids, thinking with and without a
 // signature, and thinking from providers whose signatures we may not replay.
 const exotic = [
 	{ role: "user", content: "start" },
-	{ role: "assistant", provider: "claude-bridge", content: [
-		{ type: "thinking", thinking: "planning", thinkingSignature: "sigA" },
-		{ type: "text", text: "reading two files" },
-		{ type: "toolCall", id: "functions.read:0", name: "read", arguments: { path: "a" } },
-		{ type: "toolCall", id: "functions.read:1", name: "read", arguments: { path: "b" } },
-	] },
+	{
+		role: "assistant",
+		provider: "claude-bridge",
+		content: [
+			{ type: "thinking", thinking: "planning", thinkingSignature: "sigA" },
+			{ type: "text", text: "reading two files" },
+			{ type: "toolCall", id: "functions.read:0", name: "read", arguments: { path: "a" } },
+			{ type: "toolCall", id: "functions.read:1", name: "read", arguments: { path: "b" } },
+		],
+	},
 	{ role: "toolResult", toolCallId: "functions.read:0", content: "body a" },
 	{ role: "user", content: "actually also check c" },
-	{ role: "toolResult", toolCallId: "functions.read:1", content: [
-		{ type: "text", text: "shot" },
-		{ type: "image", data: "BASE64", mimeType: "image/png" },
-	] },
-	{ role: "assistant", provider: "openrouter", content: [
-		{ type: "thinking", thinking: "foreign", thinkingSignature: "sigB" },
-		{ type: "toolCall", id: "tool call#2@x", name: "my_custom_tool", arguments: {} },
-	] },
+	{
+		role: "toolResult",
+		toolCallId: "functions.read:1",
+		content: [
+			{ type: "text", text: "shot" },
+			{ type: "image", data: "BASE64", mimeType: "image/png" },
+		],
+	},
+	{
+		role: "assistant",
+		provider: "openrouter",
+		content: [
+			{ type: "thinking", thinking: "foreign", thinkingSignature: "sigB" },
+			{ type: "toolCall", id: "tool call#2@x", name: "my_custom_tool", arguments: {} },
+		],
+	},
 	{ role: "toolResult", toolCallId: "tool call#2@x", content: "", isError: true },
 	{ role: "assistant", provider: "claude-bridge", content: [{ type: "thinking", thinking: "unsigned" }] },
 	{ role: "user", content: "" },
 	{ role: "user", content: [{ type: "image", data: "IMG", mimeType: "image/jpeg" }] },
-	{ role: "assistant", provider: "claude-bridge", content: [{ type: "toolCall", id: "t9", name: "bash", arguments: { cmd: "ls" } }] },
+	{
+		role: "assistant",
+		provider: "claude-bridge",
+		content: [{ type: "toolCall", id: "t9", name: "bash", arguments: { cmd: "ls" } }],
+	},
 	{ role: "toolResult", toolCallId: "t9", content: [{ type: "document" }] },
 	{ role: "assistant", provider: "claude-bridge", content: [{ type: "text", text: "done" }] },
 ];
@@ -112,6 +131,12 @@ it("a real session round-trips with every tool result intact", () => {
 	const expected = corpus.filter((m) => m.role === "toolResult");
 
 	assert.equal(blocks.length, expected.length);
-	assert.deepEqual(blocks.map((b) => b.tool_use_id), expected.map((m) => m.toolCallId));
-	assert.deepEqual(blocks.filter((b) => String(b.content).includes("no tool result recorded")), []);
+	assert.deepEqual(
+		blocks.map((b) => b.tool_use_id),
+		expected.map((m) => m.toolCallId),
+	);
+	assert.deepEqual(
+		blocks.filter((b) => String(b.content).includes("no tool result recorded")),
+		[],
+	);
 });

@@ -4,8 +4,9 @@
  * on its own, nothing throws, and the damage shows up in the user's ~/.claude
  * rather than in a test.
  */
-import { describe, it } from "node:test";
+
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 
 const { CC_CHILD_ENV } = await import("../src/config.js");
 

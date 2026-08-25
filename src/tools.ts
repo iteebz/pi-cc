@@ -2,15 +2,15 @@
 // arguments are spelled on each side, and how a result gets back to the MCP
 // handler that is blocking on it.
 
-import type { Context, Tool } from "@earendil-works/pi-ai";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources";
+import type { Context, Tool } from "@earendil-works/pi-ai";
 import { debug } from "./debug.js";
 import type { McpResult } from "./extract-tool-results.js";
 import { createToolServer } from "./mcp-server.js";
-import { MCP_SERVER_NAME, MCP_TOOL_PREFIX } from "./tool-names.js";
-import { userMessage, type PromptStream } from "./prompt-stream.js";
+import { type PromptStream, userMessage } from "./prompt-stream.js";
 import type { QueryContext } from "./query-state.js";
 import { steerMissedSession } from "./session.js";
+import { MCP_SERVER_NAME, MCP_TOOL_PREFIX } from "./tool-names.js";
 import { notify } from "./ui.js";
 
 // Provider path: the query runs with `tools: []`, so the only tools CC can
@@ -29,16 +29,14 @@ export function piToolNameFor(name: string, customToolNameToPi: Map<string, stri
 // Renames for Claude Code SDK param names that differ from pi's native names.
 // Keys not listed here pass through unchanged, so new pi params work automatically.
 const SDK_KEY_RENAMES: Record<string, Record<string, string>> = {
-	read:  { file_path: "path" },
+	read: { file_path: "path" },
 	write: { file_path: "path" },
-	edit:  { file_path: "path", old_string: "oldText", new_string: "newText", old_text: "oldText", new_text: "newText" },
+	edit: { file_path: "path", old_string: "oldText", new_string: "newText", old_text: "oldText", new_text: "newText" },
 };
 
 // Maps SDK tool args to pi tool args via key renaming + pass-through.
 // Pi's own prepareArguments hooks handle any structural transforms (e.g. edit oldText/newText → edits[]).
-export function mapToolArgs(
-	toolName: string, args: Record<string, unknown> | undefined,
-): Record<string, unknown> {
+export function mapToolArgs(toolName: string, args: Record<string, unknown> | undefined): Record<string, unknown> {
 	const input = args ?? {};
 	const renames = SDK_KEY_RENAMES[toolName.toLowerCase()];
 	const result: Record<string, unknown> = {};
@@ -86,7 +84,10 @@ export function resolveMcpTools(context: Context): {
 // it, and a handler that runs first parks its resolver in `pendingToolCalls`.
 // Handlers close over the captured `queryCtx`, ensuring they operate on the
 // correct query's state while multiple queries run concurrently.
-export function buildMcpServers(tools: Tool[], queryCtx: QueryContext): Record<string, ReturnType<typeof createToolServer>> | undefined {
+export function buildMcpServers(
+	tools: Tool[],
+	queryCtx: QueryContext,
+): Record<string, ReturnType<typeof createToolServer>> | undefined {
 	if (!tools.length) return undefined;
 	const mcpTools = tools.map((tool) => ({
 		name: tool.name,
@@ -96,7 +97,9 @@ export function buildMcpServers(tools: Tool[], queryCtx: QueryContext): Record<s
 			if (queryCtx.pendingResults.has(toolCallId)) {
 				const result = queryCtx.pendingResults.get(toolCallId)!;
 				queryCtx.pendingResults.delete(toolCallId);
-				debug(`mcp handler: ${tool.name} [${toolCallId}] → resolved from queue (${queryCtx.pendingResults.size} remaining)`);
+				debug(
+					`mcp handler: ${tool.name} [${toolCallId}] → resolved from queue (${queryCtx.pendingResults.size} remaining)`,
+				);
 				return result;
 			}
 			debug(`mcp handler: ${tool.name} [${toolCallId}] → waiting`);
@@ -147,13 +150,18 @@ export async function deliverToolResults(
 		}
 	}
 
-	debug(`provider: tool results, ${results.length} results, ${c.pendingToolCalls.size} waiting handlers, ctx.msgs=${contextLength}`);
+	debug(
+		`provider: tool results, ${results.length} results, ${c.pendingToolCalls.size} waiting handlers, ctx.msgs=${contextLength}`,
+	);
 	for (const result of results) {
 		const id = result.toolCallId;
 		if (id && c.pendingToolCalls.has(id)) {
 			const pending = c.pendingToolCalls.get(id)!;
 			c.pendingToolCalls.delete(id);
-			debug(`provider: resolving ${pending.toolName} [${id}]${result.isError ? " (error)" : ""}`, JSON.stringify(result.content).slice(0, 200));
+			debug(
+				`provider: resolving ${pending.toolName} [${id}]${result.isError ? " (error)" : ""}`,
+				JSON.stringify(result.content).slice(0, 200),
+			);
 			pending.resolve(result);
 		} else if (id) {
 			c.pendingResults.set(id, result);
@@ -167,7 +175,10 @@ export async function deliverToolResults(
 	}
 	if (c.pendingToolCalls.size > 0) {
 		debug(`WARNING: ${c.pendingToolCalls.size} MCP handlers still waiting after delivering ${results.length} results`);
-		notify(`Claude bridge: ${c.pendingToolCalls.size} tool handler(s) still waiting — provider may be stuck`, "warning");
+		notify(
+			`Claude bridge: ${c.pendingToolCalls.size} tool handler(s) still waiting — provider may be stuck`,
+			"warning",
+		);
 	}
 }
 

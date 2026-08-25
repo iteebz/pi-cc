@@ -32,7 +32,7 @@
 //     "Turn Context (split turn)" marker that compact() only emits when
 //     isSplitTurn fired, proving the race path was exercised.
 
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
@@ -44,9 +44,12 @@ const TEST_TIMEOUT = 180_000;
 // Temp agent dir whose global settings.json forces isSplitTurn by lowering
 // keepRecentTokens. Any modest assistant turn then straddles the boundary.
 const testAgentDir = mkdtempSync(join(tmpdir(), "compact-splitturn-agent-"));
-writeFileSync(join(testAgentDir, "settings.json"), JSON.stringify({
-	compaction: { keepRecentTokens: 50 },
-}));
+writeFileSync(
+	join(testAgentDir, "settings.json"),
+	JSON.stringify({
+		compaction: { keepRecentTokens: 50 },
+	}),
+);
 
 const harness = createRpcHarness({
 	name: "compact-splitturn",
@@ -76,7 +79,7 @@ try {
 	} catch (e) {
 		throw new Error(
 			`compact did not complete within ${COMPACT_TIMEOUT / 1000}s — split-turn ` +
-			`dual-summary race hung stream.result() (issue #18). Underlying: ${e.message}`
+				`dual-summary race hung stream.result() (issue #18). Underlying: ${e.message}`,
 		);
 	}
 	console.log(`  compact returned in ${((Date.now() - compactStarted) / 1000).toFixed(1)}s`);
@@ -92,8 +95,8 @@ try {
 	if (!/Turn Context \(split turn\)/.test(compactResult.summary)) {
 		throw new Error(
 			`compact summary lacks the "Turn Context (split turn)" marker — isSplitTurn ` +
-			`did not fire, so this run did not exercise the race. Adjust keepRecentTokens ` +
-			`or seed content. Summary head: ${compactResult.summary.slice(0, 200)}`
+				`did not fire, so this run did not exercise the race. Adjust keepRecentTokens ` +
+				`or seed content. Summary head: ${compactResult.summary.slice(0, 200)}`,
 		);
 	}
 	console.log(`  split-turn marker present (race path exercised)`);

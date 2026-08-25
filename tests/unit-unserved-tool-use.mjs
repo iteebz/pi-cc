@@ -9,8 +9,9 @@
  * turn: pi's result came back keyed to the dead id, so the handler waiting on the
  * retry's id was never released and CC stalled until it aborted.
  */
-import { describe, it } from "node:test";
+
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { QueryContext } from "../src/query-state.js";
 
 const { consumeQuery } = await import("../src/stream.js");
@@ -31,7 +32,9 @@ function makeCtx() {
 }
 
 async function consume(c, messages) {
-	async function* gen() { for (const m of messages) yield m; }
+	async function* gen() {
+		for (const m of messages) yield m;
+	}
 	await consumeQuery(gen(), toolMap, fakeModel, () => false, c);
 }
 
@@ -39,7 +42,11 @@ const streamEvent = (event) => ({ type: "stream_event", event });
 
 const toolUseTurn = (name, id) => [
 	streamEvent({ type: "content_block_start", index: 0, content_block: { type: "tool_use", name, id, input: {} } }),
-	streamEvent({ type: "content_block_delta", index: 0, delta: { type: "input_json_delta", partial_json: '{"command":"ls"}' } }),
+	streamEvent({
+		type: "content_block_delta",
+		index: 0,
+		delta: { type: "input_json_delta", partial_json: '{"command":"ls"}' },
+	}),
 	streamEvent({ type: "content_block_stop", index: 0 }),
 	streamEvent({ type: "message_stop" }),
 ];
@@ -53,7 +60,10 @@ describe("tool_use for a tool we do not serve", () => {
 		]);
 
 		const toolCalls = c.turnOutput.content.filter((b) => b.type === "toolCall");
-		assert.deepStrictEqual(toolCalls.map((b) => [b.name, b.id]), [["bash", "toolu_retry"]]);
+		assert.deepStrictEqual(
+			toolCalls.map((b) => [b.name, b.id]),
+			[["bash", "toolu_retry"]],
+		);
 		assert.deepStrictEqual(c.turnToolCallIds, ["toolu_retry"]);
 		assert.deepStrictEqual(toolCalls[0].arguments, { command: "ls", timeout: 120 });
 	});
@@ -72,15 +82,22 @@ describe("tool_use for a tool we do not serve", () => {
 	// make the same call, or the deadlock comes back through the other door.
 	it("is skipped on the assistant-message path too", async () => {
 		const c = makeCtx();
-		await consume(c, [{
-			type: "assistant",
-			message: { content: [
-				{ type: "tool_use", name: "bash", id: "toolu_phantom", input: { command: "ls" } },
-				{ type: "tool_use", name: "mcp__custom-tools__bash", id: "toolu_retry", input: { command: "ls" } },
-			] },
-		}]);
+		await consume(c, [
+			{
+				type: "assistant",
+				message: {
+					content: [
+						{ type: "tool_use", name: "bash", id: "toolu_phantom", input: { command: "ls" } },
+						{ type: "tool_use", name: "mcp__custom-tools__bash", id: "toolu_retry", input: { command: "ls" } },
+					],
+				},
+			},
+		]);
 
 		const toolCalls = c.turnOutput.content.filter((b) => b.type === "toolCall");
-		assert.deepStrictEqual(toolCalls.map((b) => [b.name, b.id]), [["bash", "toolu_retry"]]);
+		assert.deepStrictEqual(
+			toolCalls.map((b) => [b.name, b.id]),
+			[["bash", "toolu_retry"]],
+		);
 	});
 });

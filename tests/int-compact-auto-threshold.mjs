@@ -16,9 +16,12 @@ const COMPACT_TIMEOUT = 120_000;
 const TEST_TIMEOUT = 240_000;
 
 const testAgentDir = mkdtempSync(join(tmpdir(), "compact-auto-agent-"));
-writeFileSync(join(testAgentDir, "settings.json"), JSON.stringify({
-	compaction: { enabled: false, reserveTokens: 198000, keepRecentTokens: 50 },
-}));
+writeFileSync(
+	join(testAgentDir, "settings.json"),
+	JSON.stringify({
+		compaction: { enabled: false, reserveTokens: 198000, keepRecentTokens: 50 },
+	}),
+);
 
 const harness = createRpcHarness({
 	name: "compact-auto-threshold",
@@ -101,12 +104,21 @@ try {
 	const endEvent = await endPromise;
 	const answer = await answerPromise;
 
-	assert(thresholdStarts.length === 1, `expected exactly one threshold compaction_start, got ${thresholdStarts.length}`);
+	assert(
+		thresholdStarts.length === 1,
+		`expected exactly one threshold compaction_start, got ${thresholdStarts.length}`,
+	);
 	assert(thresholdEnds.length === 1, `expected exactly one threshold compaction_end, got ${thresholdEnds.length}`);
 	assert(endEvent.aborted === false, `threshold compaction aborted: ${JSON.stringify(endEvent)}`);
 	assert(endEvent.result?.summary?.trim(), `threshold compaction returned empty summary: ${JSON.stringify(endEvent)}`);
-	assert(endEvent.result?.firstKeptEntryId, `threshold compaction returned no firstKeptEntryId: ${JSON.stringify(endEvent)}`);
-	assert((endEvent.result?.tokensBefore ?? 0) > 0, `threshold compaction returned invalid tokensBefore: ${JSON.stringify(endEvent)}`);
+	assert(
+		endEvent.result?.firstKeptEntryId,
+		`threshold compaction returned no firstKeptEntryId: ${JSON.stringify(endEvent)}`,
+	);
+	assert(
+		(endEvent.result?.tokensBefore ?? 0) > 0,
+		`threshold compaction returned invalid tokensBefore: ${JSON.stringify(endEvent)}`,
+	);
 	assert(
 		/Turn Context \(split turn\)/.test(endEvent.result.summary),
 		`threshold compaction summary lacks split-turn marker. Summary head: ${endEvent.result.summary.slice(0, 500)}`,
@@ -149,7 +161,9 @@ try {
 	console.log(`FAIL: ${e.message}\n${e.stack}`);
 	console.log(`  RPC log:    ${RPC_LOG}`);
 	console.log(`  Debug log:  ${DEBUG_LOG}`);
-	try { console.log(`  Debug tail: ${readFileSync(DEBUG_LOG, "utf8").slice(-4000)}`); } catch {}
+	try {
+		console.log(`  Debug tail: ${readFileSync(DEBUG_LOG, "utf8").slice(-4000)}`);
+	} catch {}
 } finally {
 	await stop();
 	rmSync(testAgentDir, { recursive: true, force: true });

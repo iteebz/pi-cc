@@ -12,7 +12,7 @@
 // rather than in the bytes we send.
 
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const DIR = process.argv[2];
@@ -43,7 +43,9 @@ const nOf = (file) => Number(file.match(/\d+/)[0]);
 function elements(body) {
 	const out = [];
 	const system = Array.isArray(body.system) ? body.system : body.system ? [body.system] : [];
-	system.forEach((block, i) => out.push({ label: `system[${i}]`, hash: hash(block), value: block }));
+	system.forEach((block, i) => {
+		out.push({ label: `system[${i}]`, hash: hash(block), value: block });
+	});
 	out.push({ label: `tools(${body.tools?.length ?? 0})`, hash: hash(body.tools ?? []), value: body.tools ?? [] });
 	body.messages.forEach((msg, i) => {
 		const kinds = Array.isArray(msg.content) ? msg.content.map((b) => b.type).join("+") : "text";
@@ -87,18 +89,29 @@ for (let i = 1; i < requests.length; i++) {
 
 	let firstDiff = -1;
 	for (let k = 0; k < Math.min(prev.length, curr.length); k++) {
-		if (prev[k].hash !== curr[k].hash) { firstDiff = k; break; }
+		if (prev[k].hash !== curr[k].hash) {
+			firstDiff = k;
+			break;
+		}
 	}
 
 	const verdict = isCold ? "COLD" : "warm";
 	console.log(`--- ${requests[i - 1].file} → ${requests[i].file}  [${verdict}]`);
-	console.log(`    prompt elements ${prev.length} → ${curr.length}, cacheRead ${usage?.cacheRead ?? "?"} vs ${expected ?? "?"} expected` +
-		(shortfall !== null ? ` (shortfall ${shortfall})` : ""));
+	console.log(
+		`    prompt elements ${prev.length} → ${curr.length}, cacheRead ${usage?.cacheRead ?? "?"} vs ${expected ?? "?"} expected` +
+			(shortfall !== null ? ` (shortfall ${shortfall})` : ""),
+	);
 
 	if (firstDiff === -1) {
 		const grew = curr.length > prev.length;
-		console.log(`    prefix identical for all ${Math.min(prev.length, curr.length)} shared elements` +
-			(grew ? `, ${curr.length - prev.length} appended` : prev.length > curr.length ? `, ${prev.length - curr.length} dropped` : ""));
+		console.log(
+			`    prefix identical for all ${Math.min(prev.length, curr.length)} shared elements` +
+				(grew
+					? `, ${curr.length - prev.length} appended`
+					: prev.length > curr.length
+						? `, ${prev.length - curr.length} dropped`
+						: ""),
+		);
 		if (isCold) console.log("    >>> cold with a byte-identical prefix — not our bytes");
 	} else {
 		console.log(`    >>> first divergence at ${firstDiff}: ${prev[firstDiff].label} → ${curr[firstDiff].label}`);

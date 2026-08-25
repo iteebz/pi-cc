@@ -6,8 +6,9 @@
  * and nothing throws: the steer silently degrades to follow-up semantics, which
  * only the (slow, API-dependent) integration test would notice.
  */
-import { describe, it, beforeEach } from "node:test";
+
 import assert from "node:assert/strict";
+import { beforeEach, describe, it } from "node:test";
 import { QueryContext } from "../src/query-state.js";
 
 const { deliverToolResults } = await import("../src/tools.js");
@@ -35,7 +36,9 @@ function makeRecorder() {
 					}
 					// Ack on a later turn of the event loop: resolving synchronously
 					// would let a caller that forgot to await it still look correct.
-					return new Promise((resolve) => setTimeout(resolve, 5)).then(() => { order.push("ack"); });
+					return new Promise((resolve) => setTimeout(resolve, 5)).then(() => {
+						order.push("ack");
+					});
 				},
 			};
 		},
@@ -66,7 +69,12 @@ describe("deliverToolResults", () => {
 	it("sends the steer with priority next so CC drains it at the tool boundary", async () => {
 		const sent = [];
 		const c = new QueryContext();
-		c.promptStream = { push: (msg) => { sent.push(msg); return Promise.resolve(); } };
+		c.promptStream = {
+			push: (msg) => {
+				sent.push(msg);
+				return Promise.resolve();
+			},
+		};
 		c.pendingToolCalls.set("call-1", { toolName: "read", resolve: () => {} });
 
 		await deliverToolResults(c, [result("call-1")], steerText, 4);
@@ -79,7 +87,12 @@ describe("deliverToolResults", () => {
 	it("keeps image blocks in the steer", async () => {
 		const sent = [];
 		const c = new QueryContext();
-		c.promptStream = { push: (msg) => { sent.push(msg); return Promise.resolve(); } };
+		c.promptStream = {
+			push: (msg) => {
+				sent.push(msg);
+				return Promise.resolve();
+			},
+		};
 		const withImage = [
 			{ type: "text", text: "look at this" },
 			{ type: "image", source: { type: "base64", media_type: "image/png", data: "iVBOR" } },

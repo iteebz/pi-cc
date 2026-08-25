@@ -21,10 +21,10 @@
  * below with a note on why it is harmless.
  */
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 // Located by path, not require.resolve: the package defines no `exports` main, so
@@ -37,7 +37,10 @@ const PI_DIST = fileURLToPath(new URL("../node_modules/@earendil-works/pi-coding
  *  branch-summarization miss, and a filename-only inventory would wave it through.
  *  A changed count is not automatically a bug; it means read the diff and re-decide. */
 const HANDLED = {
-	"agent-session.js": { mentions: 1, why: "the one hand-off: `streamFn: this.agent.streamFunction` into generateBranchSummary" },
+	"agent-session.js": {
+		mentions: 1,
+		why: "the one hand-off: `streamFn: this.agent.streamFunction` into generateBranchSummary",
+	},
 	"sdk.js": { mentions: 2, why: "constructs the agent, does not summarize" },
 	"compaction/compaction.js": { mentions: 13, why: "taken over via session_before_compact -> isolatedStreamFn" },
 	"compaction/branch-summarization.js": { mentions: 2, why: "taken over via session_before_tree -> isolatedStreamFn" },
@@ -69,21 +72,26 @@ describe("pi streamFn consumers", () => {
 		assert.deepEqual(
 			unexpected,
 			[],
-			`pi has streamFn consumers this bridge has never considered: ${unexpected.join(", ")}. `
-			+ `Each can route an LLM call through our provider with a system prompt no before_agent_start recorded.`,
+			`pi has streamFn consumers this bridge has never considered: ${unexpected.join(", ")}. ` +
+				`Each can route an LLM call through our provider with a system prompt no before_agent_start recorded.`,
 		);
 
 		// If one of these disappears, the takeover it justifies is now dead code.
 		const missing = Object.keys(HANDLED).filter((rel) => !found.has(rel));
-		assert.deepEqual(missing, [], `these no longer consume streamFn — is the takeover still needed? ${missing.join(", ")}`);
+		assert.deepEqual(
+			missing,
+			[],
+			`these no longer consume streamFn — is the takeover still needed? ${missing.join(", ")}`,
+		);
 
-		const drifted = [...found].filter(([rel, n]) => HANDLED[rel].mentions !== n)
+		const drifted = [...found]
+			.filter(([rel, n]) => HANDLED[rel].mentions !== n)
 			.map(([rel, n]) => `${rel}: ${HANDLED[rel].mentions} -> ${n}`);
 		assert.deepEqual(
 			drifted,
 			[],
-			`pi changed how often these reference streamFn: ${drifted.join("; ")}. `
-			+ `Read the diff — a new call site inside a file we already trust is the case a filename-only inventory misses — then update the counts.`,
+			`pi changed how often these reference streamFn: ${drifted.join("; ")}. ` +
+				`Read the diff — a new call site inside a file we already trust is the case a filename-only inventory misses — then update the counts.`,
 		);
 	});
 });

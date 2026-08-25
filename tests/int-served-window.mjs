@@ -5,7 +5,7 @@
 //
 // Haiku keeps it cheap; the path is identical to opus/sonnet.
 
-import { readFileSync, rmSync, writeFileSync, mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
@@ -54,7 +54,9 @@ try {
 	const served = Number(line.match(/served contextWindow=(\d+)/)[1]);
 	const registered = Number(line.match(/registered=(\d+)/)[1]);
 	if (served !== registered) {
-		throw new Error(`served contextWindow (${served}) != registered (${registered}); pi's compaction threshold is out of sync with the CC window.\n  ${line.trim()}`);
+		throw new Error(
+			`served contextWindow (${served}) != registered (${registered}); pi's compaction threshold is out of sync with the CC window.\n  ${line.trim()}`,
+		);
 	}
 
 	console.log("PASS");

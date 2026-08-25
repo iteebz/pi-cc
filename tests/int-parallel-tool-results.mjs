@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // Parallel tool calls must survive a session rebuild.
 //
 // Pi records one message per tool result; repairToolPairing pairs only the ones
@@ -14,12 +15,12 @@
 //
 // Requires: ANTHROPIC_API_KEY or CC logged in.
 
-import { test } from "node:test";
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { createSession, repairToolPairing } from "cc-session-io";
+import { test } from "node:test";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { createSession, repairToolPairing } from "cc-session-io";
 import { convertPiMessages } from "../src/convert.js";
 
 const CWD = process.cwd();
@@ -32,15 +33,27 @@ function piHistoryWithParallelCall() {
 	const ids = TOKENS.map((_, i) => `toolu_par${i}`);
 	return [
 		{ role: "user", content: "Read the three token files." },
-		{ role: "assistant", provider: "claude-bridge", content: ids.map((id, i) => ({
-			type: "toolCall", id, name: "read", arguments: { path: `token${i}.txt` },
-		})) },
+		{
+			role: "assistant",
+			provider: "claude-bridge",
+			content: ids.map((id, i) => ({
+				type: "toolCall",
+				id,
+				name: "read",
+				arguments: { path: `token${i}.txt` },
+			})),
+		},
 		...ids.map((id, i) => ({ role: "toolResult", toolCallId: id, content: `The token in this file is ${TOKENS[i]}.` })),
 	];
 }
 
 function seedRebuiltSession(sid) {
-	const session = createSession({ sessionId: sid, projectPath: CWD, claudeDir: process.env.CLAUDE_CONFIG_DIR, model: MODEL });
+	const session = createSession({
+		sessionId: sid,
+		projectPath: CWD,
+		claudeDir: process.env.CLAUDE_CONFIG_DIR,
+		model: MODEL,
+	});
 	const { anthropicMessages } = convertPiMessages(piHistoryWithParallelCall(), new Map());
 	session.importMessages(repairToolPairing(anthropicMessages));
 	session.save();
@@ -48,7 +61,9 @@ function seedRebuiltSession(sid) {
 }
 
 function toolResultBlocks(jsonlPath) {
-	return readFileSync(jsonlPath, "utf8").trim().split("\n")
+	return readFileSync(jsonlPath, "utf8")
+		.trim()
+		.split("\n")
 		.map((l) => JSON.parse(l))
 		.filter((r) => Array.isArray(r.message?.content))
 		.flatMap((r) => r.message.content.filter((b) => b.type === "tool_result"));
@@ -60,8 +75,10 @@ test("a rebuilt parallel tool call keeps every result on disk", { timeout: 30_00
 
 	assert.equal(results.length, TOKENS.length, `expected ${TOKENS.length} tool_result blocks, got ${results.length}`);
 	for (const token of TOKENS) {
-		assert.ok(results.some((b) => typeof b.content === "string" && b.content.includes(token)),
-			`${token} missing from the rebuilt session — results: ${JSON.stringify(results.map((b) => b.content))}`);
+		assert.ok(
+			results.some((b) => typeof b.content === "string" && b.content.includes(token)),
+			`${token} missing from the rebuilt session — results: ${JSON.stringify(results.map((b) => b.content))}`,
+		);
 	}
 });
 
@@ -80,6 +97,10 @@ test("CC resumes it and Claude can read all three results back", { timeout: 120_
 	}
 
 	for (const token of TOKENS) {
-		assert.match(answer, new RegExp(token, "i"), `Claude could not see ${token} after the rebuild — answer: ${answer.trim()}`);
+		assert.match(
+			answer,
+			new RegExp(token, "i"),
+			`Claude could not see ${token} after the rebuild — answer: ${answer.trim()}`,
+		);
 	}
 });

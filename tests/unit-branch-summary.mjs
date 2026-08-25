@@ -13,8 +13,8 @@
  * need a Claude Code subprocess.
  */
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 
 const { default: activate } = await import("../src/index.js");
 const { branchSummaryOutcome } = await import("../src/summary.js");

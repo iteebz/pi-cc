@@ -1,17 +1,22 @@
 #!/usr/bin/env node
+
 // Unit tests for carrying CC attachments across a rebuild (attachments.ts).
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { collectCarriedAttachments, placeCarriedAttachments } from "../src/attachments.js";
 
 const user = (uuid, text) => ({ type: "user", uuid, message: { role: "user", content: [{ type: "text", text }] } });
 const toolResultUser = (uuid) => ({
-	type: "user", uuid,
+	type: "user",
+	uuid,
 	message: { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "ok" }] },
 });
 const attach = (uuid, parentUuid, type, filename) => ({
-	type: "attachment", uuid, parentUuid, attachment: { type, filename },
+	type: "attachment",
+	uuid,
+	parentUuid,
+	attachment: { type, filename },
 });
 
 describe("collectCarriedAttachments", () => {
@@ -26,7 +31,10 @@ describe("collectCarriedAttachments", () => {
 		// edited_text_file is deliberately not carried: the edit is already in pi's
 		// history as a tool call, and it usually hangs off a tool-result record that
 		// has no prompt ordinal. See diag/attachment-coverage.mjs.
-		assert.deepEqual(carried.map((c) => c.attachment.filename), ["/a.js"]);
+		assert.deepEqual(
+			carried.map((c) => c.attachment.filename),
+			["/a.js"],
+		);
 	});
 
 	it("counts ordinals over prompts only, skipping tool-result user records", () => {
@@ -41,10 +49,7 @@ describe("collectCarriedAttachments", () => {
 	});
 
 	it("ignores an attachment whose parent is not a prompt", () => {
-		const carried = collectCarriedAttachments([
-			user("u1", "first"),
-			attach("a1", "missing-uuid", "file", "/a.js"),
-		]);
+		const carried = collectCarriedAttachments([user("u1", "first"), attach("a1", "missing-uuid", "file", "/a.js")]);
 		assert.equal(carried.length, 0);
 	});
 });
@@ -88,8 +93,14 @@ describe("attachments chained to other attachments", () => {
 			attach("a3", "a2", "file", "/c.js"),
 		]);
 		// The uncarried kind still has to resolve, or the run breaks after it.
-		assert.deepEqual(carried.map((c) => c.attachment.filename), ["/a.js", "/c.js"]);
-		assert.deepEqual(carried.map((c) => c.userOrdinal), [1, 1]);
+		assert.deepEqual(
+			carried.map((c) => c.attachment.filename),
+			["/a.js", "/c.js"],
+		);
+		assert.deepEqual(
+			carried.map((c) => c.userOrdinal),
+			[1, 1],
+		);
 	});
 
 	it("resolves through a kind it does not carry", () => {
@@ -98,7 +109,10 @@ describe("attachments chained to other attachments", () => {
 			attach("a1", "u1", "skill_listing"),
 			attach("a2", "a1", "file", "/a.js"),
 		]);
-		assert.deepEqual(carried.map((c) => c.attachment.filename), ["/a.js"]);
+		assert.deepEqual(
+			carried.map((c) => c.attachment.filename),
+			["/a.js"],
+		);
 		assert.equal(carried[0].userOrdinal, 0);
 	});
 });

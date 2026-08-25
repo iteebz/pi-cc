@@ -4,8 +4,9 @@
  * assistant message. Shape verified against claude-agent-sdk 0.2.141. Without this the
  * turn finalizes as a normal stop and the failure never reaches pi.
  */
-import { describe, it } from "node:test";
+
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { QueryContext } from "../src/query-state.js";
 
 const { consumeQuery, finalizeCurrentStream, resultErrorText } = await import("../src/stream.js");
@@ -25,12 +26,17 @@ function makeCtx() {
 }
 
 async function consume(c, messages) {
-	async function* gen() { for (const m of messages) yield m; }
+	async function* gen() {
+		for (const m of messages) yield m;
+	}
 	await consumeQuery(gen(), new Map(), fakeModel, () => false, c);
 }
 
 const errorResult = {
-	type: "result", subtype: "success", is_error: true, api_error_status: 429,
+	type: "result",
+	subtype: "success",
+	is_error: true,
+	api_error_status: 429,
 	result: "API Error: Server is temporarily limiting requests (not your usage limit): Rate limited",
 	terminal_reason: "model_error",
 };
@@ -43,11 +49,17 @@ describe("resultErrorText", () => {
 	});
 
 	it("returns undefined for a genuine success", () => {
-		assert.strictEqual(resultErrorText({ type: "result", subtype: "success", is_error: false, result: "a summary" }), undefined);
+		assert.strictEqual(
+			resultErrorText({ type: "result", subtype: "success", is_error: false, result: "a summary" }),
+			undefined,
+		);
 	});
 
 	it("joins errors[] for the dedicated error subtypes", () => {
-		assert.strictEqual(resultErrorText({ type: "result", subtype: "error_during_execution", errors: ["boom", "bang"] }), "boom\nbang");
+		assert.strictEqual(
+			resultErrorText({ type: "result", subtype: "error_during_execution", errors: ["boom", "bang"] }),
+			"boom\nbang",
+		);
 	});
 
 	it("never returns an empty message for a failure", () => {
@@ -83,7 +95,10 @@ describe("error results", () => {
 		]);
 
 		const texts = c.turnOutput.content.filter((b) => b.type === "text");
-		assert.deepStrictEqual(texts.map((b) => b.text), [errorResult.result]);
+		assert.deepStrictEqual(
+			texts.map((b) => b.text),
+			[errorResult.result],
+		);
 	});
 
 	it("still streams and finalizes a successful result normally", async () => {

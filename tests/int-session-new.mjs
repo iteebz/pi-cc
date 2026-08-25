@@ -25,7 +25,9 @@ await startAndWait();
 
 try {
 	console.log("Turn 1: seed history...");
-	await promptAndWait("Pick a number between 1 and 100 and remember it. Reply with just the number. Do not use the memory system.");
+	await promptAndWait(
+		"Pick a number between 1 and 100 and remember it. Reply with just the number. Do not use the memory system.",
+	);
 	console.log("Turn 2: more history...");
 	await promptAndWait("Now pick a color. Reply with just the color. Do not use the memory system.");
 
@@ -56,7 +58,8 @@ try {
 	if (syncResults[0] !== "clean-start") {
 		throw new Error(
 			`bridge took ${syncResults[0]} path after /new — expected clean-start.\n` +
-			`       sharedSession should be cleared by the session_start:new handler.`);
+				`       sharedSession should be cleared by the session_start:new handler.`,
+		);
 	}
 
 	console.log("PASS");

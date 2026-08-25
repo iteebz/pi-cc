@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+
 // Unit tests for pi→Anthropic message conversion (convert.ts).
 
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import { repairToolPairing } from "cc-session-io";
-import { sanitizeToolId, convertPiMessages } from "../src/convert.js";
+import { convertPiMessages } from "../src/convert.js";
 
 /** Shorthand: convert pi messages and return just the anthropic messages. */
 function convert(messages, customToolNameToSdk = new Map()) {
@@ -16,7 +17,10 @@ function convert(messages, customToolNameToSdk = new Map()) {
 describe("tool ID sanitization", () => {
 	it("Kimi-style IDs with dots and colons", () => {
 		const msgs = [
-			{ role: "assistant", content: [{ type: "toolCall", id: "functions.bash:0", name: "bash", arguments: { cmd: "ls" } }] },
+			{
+				role: "assistant",
+				content: [{ type: "toolCall", id: "functions.bash:0", name: "bash", arguments: { cmd: "ls" } }],
+			},
 			{ role: "toolResult", toolCallId: "functions.bash:0", content: "file.txt" },
 		];
 		const result = convert(msgs);
@@ -63,10 +67,13 @@ describe("tool ID sanitization", () => {
 describe("empty text block filtering", () => {
 	it("assistant with empty text + toolCall → only toolCall", () => {
 		const msgs = [
-			{ role: "assistant", content: [
-				{ type: "text", text: "" },
-				{ type: "toolCall", id: "abc", name: "read", arguments: {} },
-			]},
+			{
+				role: "assistant",
+				content: [
+					{ type: "text", text: "" },
+					{ type: "toolCall", id: "abc", name: "read", arguments: {} },
+				],
+			},
 		];
 		const result = convert(msgs);
 		assert.equal(result.length, 1);
@@ -75,18 +82,14 @@ describe("empty text block filtering", () => {
 	});
 
 	it("assistant with only empty text → placeholder", () => {
-		const msgs = [
-			{ role: "assistant", content: [{ type: "text", text: "" }] },
-		];
+		const msgs = [{ role: "assistant", content: [{ type: "text", text: "" }] }];
 		const result = convert(msgs);
 		assert.equal(result.length, 1);
 		assert.equal(result[0].content[0].text, "[incompatible content omitted]");
 	});
 
 	it("assistant with non-empty text → preserved", () => {
-		const msgs = [
-			{ role: "assistant", content: [{ type: "text", text: "Hello world" }] },
-		];
+		const msgs = [{ role: "assistant", content: [{ type: "text", text: "Hello world" }] }];
 		const result = convert(msgs);
 		assert.equal(result.length, 1);
 		assert.equal(result[0].content[0].text, "Hello world");
@@ -94,11 +97,14 @@ describe("empty text block filtering", () => {
 
 	it("assistant with multiple text blocks, some empty", () => {
 		const msgs = [
-			{ role: "assistant", content: [
-				{ type: "text", text: "" },
-				{ type: "text", text: "real content" },
-				{ type: "text", text: "" },
-			]},
+			{
+				role: "assistant",
+				content: [
+					{ type: "text", text: "" },
+					{ type: "text", text: "real content" },
+					{ type: "text", text: "" },
+				],
+			},
 		];
 		const result = convert(msgs);
 		assert.equal(result.length, 1);
@@ -110,10 +116,14 @@ describe("empty text block filtering", () => {
 describe("thinking block filtering", () => {
 	it("non-Anthropic provider thinking blocks dropped", () => {
 		const msgs = [
-			{ role: "assistant", provider: "openrouter", content: [
-				{ type: "thinking", thinking: "let me think..." },
-				{ type: "text", text: "answer" },
-			]},
+			{
+				role: "assistant",
+				provider: "openrouter",
+				content: [
+					{ type: "thinking", thinking: "let me think..." },
+					{ type: "text", text: "answer" },
+				],
+			},
 		];
 		const result = convert(msgs);
 		assert.equal(result.length, 1);
@@ -123,10 +133,14 @@ describe("thinking block filtering", () => {
 
 	it("Anthropic provider thinking with signature preserved", () => {
 		const msgs = [
-			{ role: "assistant", provider: "claude-bridge", content: [
-				{ type: "thinking", thinking: "reasoning...", thinkingSignature: "sig123" },
-				{ type: "text", text: "answer" },
-			]},
+			{
+				role: "assistant",
+				provider: "claude-bridge",
+				content: [
+					{ type: "thinking", thinking: "reasoning...", thinkingSignature: "sig123" },
+					{ type: "text", text: "answer" },
+				],
+			},
 		];
 		const result = convert(msgs);
 		assert.equal(result[0].content.length, 2);
@@ -138,10 +152,15 @@ describe("thinking block filtering", () => {
 	// Code's session, so it is dropped even though the message is Anthropic's.
 	it("thinking from pi's own Anthropic provider is dropped", () => {
 		const msgs = [
-			{ role: "assistant", provider: "anthropic", api: "anthropic-messages", content: [
-				{ type: "thinking", thinking: "hmm", thinkingSignature: "sig456" },
-				{ type: "text", text: "done" },
-			]},
+			{
+				role: "assistant",
+				provider: "anthropic",
+				api: "anthropic-messages",
+				content: [
+					{ type: "thinking", thinking: "hmm", thinkingSignature: "sig456" },
+					{ type: "text", text: "done" },
+				],
+			},
 		];
 		const result = convert(msgs);
 		assert.deepEqual(result[0].content, [{ type: "text", text: "done" }]);
@@ -149,10 +168,14 @@ describe("thinking block filtering", () => {
 
 	it("Anthropic provider thinking WITHOUT signature → dropped", () => {
 		const msgs = [
-			{ role: "assistant", provider: "claude-bridge", content: [
-				{ type: "thinking", thinking: "no sig" },
-				{ type: "text", text: "answer" },
-			]},
+			{
+				role: "assistant",
+				provider: "claude-bridge",
+				content: [
+					{ type: "thinking", thinking: "no sig" },
+					{ type: "text", text: "answer" },
+				],
+			},
 		];
 		const result = convert(msgs);
 		assert.equal(result[0].content.length, 1);
@@ -161,9 +184,7 @@ describe("thinking block filtering", () => {
 
 	it("assistant with only thinking (non-Anthropic) → placeholder", () => {
 		const msgs = [
-			{ role: "assistant", provider: "deepseek", content: [
-				{ type: "thinking", thinking: "deep thoughts" },
-			]},
+			{ role: "assistant", provider: "deepseek", content: [{ type: "thinking", thinking: "deep thoughts" }] },
 		];
 		const result = convert(msgs);
 		assert.equal(result.length, 1);
@@ -173,9 +194,7 @@ describe("thinking block filtering", () => {
 
 describe("message structure", () => {
 	it("toolResult → user with tool_result content", () => {
-		const msgs = [
-			{ role: "toolResult", toolCallId: "id1", content: "result text", isError: false },
-		];
+		const msgs = [{ role: "toolResult", toolCallId: "id1", content: "result text", isError: false }];
 		const result = convert(msgs);
 		assert.equal(result[0].role, "user");
 		assert.equal(result[0].content[0].type, "tool_result");
@@ -185,9 +204,7 @@ describe("message structure", () => {
 	});
 
 	it("toolResult with isError=true", () => {
-		const msgs = [
-			{ role: "toolResult", toolCallId: "id1", content: "oh no", isError: true },
-		];
+		const msgs = [{ role: "toolResult", toolCallId: "id1", content: "oh no", isError: true }];
 		assert.equal(convert(msgs)[0].content[0].is_error, true);
 	});
 
@@ -195,10 +212,13 @@ describe("message structure", () => {
 	// message — see the parallel-tool-call tests below for why it matters.
 	it("merges the results of a parallel tool call into one user message", () => {
 		const msgs = [
-			{ role: "assistant", content: [
-				{ type: "toolCall", id: "t1", name: "read", arguments: { path: "a.txt" } },
-				{ type: "toolCall", id: "t2", name: "read", arguments: { path: "b.txt" } },
-			]},
+			{
+				role: "assistant",
+				content: [
+					{ type: "toolCall", id: "t1", name: "read", arguments: { path: "a.txt" } },
+					{ type: "toolCall", id: "t2", name: "read", arguments: { path: "b.txt" } },
+				],
+			},
 			{ role: "toolResult", toolCallId: "t1", content: "content a" },
 			{ role: "toolResult", toolCallId: "t2", content: "content b" },
 		];
@@ -206,8 +226,13 @@ describe("message structure", () => {
 		assert.equal(result.length, 2);
 		assert.equal(result[0].content.length, 2);
 		assert.equal(result[1].role, "user");
-		assert.deepEqual(result[1].content.map((b) => [b.tool_use_id, b.content]),
-			[["t1", "content a"], ["t2", "content b"]]);
+		assert.deepEqual(
+			result[1].content.map((b) => [b.tool_use_id, b.content]),
+			[
+				["t1", "content a"],
+				["t2", "content b"],
+			],
+		);
 	});
 
 	it("does not merge results across an intervening user message", () => {
@@ -218,16 +243,19 @@ describe("message structure", () => {
 			{ role: "assistant", content: [{ type: "toolCall", id: "t2", name: "read", arguments: {} }] },
 			{ role: "toolResult", toolCallId: "t2", content: "b" },
 		];
-		assert.deepEqual(convert(msgs).map((m) => m.role),
-			["assistant", "user", "user", "assistant", "user"]);
+		assert.deepEqual(
+			convert(msgs).map((m) => m.role),
+			["assistant", "user", "user", "assistant", "user"],
+		);
 	});
 
 	it("mixed conversation: user → assistant(tool) → toolResult → assistant(text)", () => {
 		const msgs = [
 			{ role: "user", content: "read file.txt" },
-			{ role: "assistant", content: [
-				{ type: "toolCall", id: "call1", name: "read", arguments: { path: "file.txt" } },
-			]},
+			{
+				role: "assistant",
+				content: [{ type: "toolCall", id: "call1", name: "read", arguments: { path: "file.txt" } }],
+			},
 			{ role: "toolResult", toolCallId: "call1", content: "hello world" },
 			{ role: "assistant", content: [{ type: "text", text: "The file says hello world." }] },
 		];
@@ -268,14 +296,19 @@ describe("message structure", () => {
 	it("tool name mapping: unserved pi tools keep the MCP namespace", () => {
 		const served = new Map([["read", "mcp__custom-tools__read"]]);
 		const msgs = [
-			{ role: "assistant", content: [
-				{ type: "toolCall", id: "a", name: "read", arguments: {} },
-				{ type: "toolCall", id: "b", name: "bash", arguments: {} },
-				{ type: "toolCall", id: "c", name: "SomeOtherExtensionTool", arguments: {} },
-			]},
+			{
+				role: "assistant",
+				content: [
+					{ type: "toolCall", id: "a", name: "read", arguments: {} },
+					{ type: "toolCall", id: "b", name: "bash", arguments: {} },
+					{ type: "toolCall", id: "c", name: "SomeOtherExtensionTool", arguments: {} },
+				],
+			},
 		];
-		assert.deepEqual(convert(msgs, served)[0].content.map((b) => b.name),
-			["mcp__custom-tools__read", "mcp__custom-tools__bash", "mcp__custom-tools__SomeOtherExtensionTool"]);
+		assert.deepEqual(
+			convert(msgs, served)[0].content.map((b) => b.name),
+			["mcp__custom-tools__read", "mcp__custom-tools__bash", "mcp__custom-tools__SomeOtherExtensionTool"],
+		);
 	});
 
 	it("tool name mapping: an SDK name in pi history is a double mapping, not a tool", () => {
@@ -288,10 +321,13 @@ describe("message structure", () => {
 
 	it("unmapped tool names fall through to the MCP prefix", () => {
 		const msgs = [
-			{ role: "assistant", content: [
-				{ type: "toolCall", id: "a", name: "read", arguments: {} },
-				{ type: "toolCall", id: "b", name: "bash", arguments: {} },
-			]},
+			{
+				role: "assistant",
+				content: [
+					{ type: "toolCall", id: "a", name: "read", arguments: {} },
+					{ type: "toolCall", id: "b", name: "bash", arguments: {} },
+				],
+			},
 		];
 		const result = convert(msgs);
 		assert.equal(result[0].content[0].name, "mcp__custom-tools__read");
@@ -300,10 +336,14 @@ describe("message structure", () => {
 
 	it("toolResult with array content extracts text", () => {
 		const msgs = [
-			{ role: "toolResult", toolCallId: "x", content: [
-				{ type: "text", text: "line 1" },
-				{ type: "text", text: "line 2" },
-			]},
+			{
+				role: "toolResult",
+				toolCallId: "x",
+				content: [
+					{ type: "text", text: "line 1" },
+					{ type: "text", text: "line 2" },
+				],
+			},
 		];
 		assert.equal(convert(msgs)[0].content[0].content, "line 1\nline 2");
 	});
@@ -312,10 +352,14 @@ describe("message structure", () => {
 	// flattening to text would drop them from a rebuilt session.
 	it("toolResult keeps image blocks instead of flattening to text", () => {
 		const msgs = [
-			{ role: "toolResult", toolCallId: "x", content: [
-				{ type: "text", text: "captured" },
-				{ type: "image", data: "BASE64DATA", mimeType: "image/png" },
-			]},
+			{
+				role: "toolResult",
+				toolCallId: "x",
+				content: [
+					{ type: "text", text: "captured" },
+					{ type: "image", data: "BASE64DATA", mimeType: "image/png" },
+				],
+			},
 		];
 		const result = convert(msgs)[0].content[0].content;
 		assert.deepEqual(result, [
@@ -327,18 +371,17 @@ describe("message structure", () => {
 	// The string shape is what CC writes for text-only results; switching to
 	// blocks unconditionally would diverge from it and perturb the cache key.
 	it("toolResult without an image stays a flat string", () => {
-		const msgs = [
-			{ role: "toolResult", toolCallId: "x", content: [{ type: "text", text: "just text" }] },
-		];
+		const msgs = [{ role: "toolResult", toolCallId: "x", content: [{ type: "text", text: "just text" }] }];
 		assert.equal(convert(msgs)[0].content[0].content, "just text");
 	});
 
 	it("toolResult keeps markers for blocks that are neither text nor image", () => {
 		const msgs = [
-			{ role: "toolResult", toolCallId: "x", content: [
-				{ type: "document" },
-				{ type: "image", data: "BASE64DATA", mimeType: "image/png" },
-			]},
+			{
+				role: "toolResult",
+				toolCallId: "x",
+				content: [{ type: "document" }, { type: "image", data: "BASE64DATA", mimeType: "image/png" }],
+			},
 		];
 		const result = convert(msgs)[0].content[0].content;
 		assert.deepEqual(result, [
@@ -349,9 +392,7 @@ describe("message structure", () => {
 
 	it("toolResult with only an image keeps the image", () => {
 		const msgs = [
-			{ role: "toolResult", toolCallId: "x", content: [
-				{ type: "image", data: "BASE64DATA", mimeType: "image/png" },
-			]},
+			{ role: "toolResult", toolCallId: "x", content: [{ type: "image", data: "BASE64DATA", mimeType: "image/png" }] },
 		];
 		const result = convert(msgs)[0].content[0].content;
 		assert.deepEqual(result, [
@@ -371,7 +412,10 @@ describe("conversion survives repairToolPairing", () => {
 		const ids = Array.from({ length: n }, (_, i) => `t${i}`);
 		return [
 			{ role: "user", content: "read them all" },
-			{ role: "assistant", content: ids.map((id) => ({ type: "toolCall", id, name: "read", arguments: { path: `${id}.txt` } })) },
+			{
+				role: "assistant",
+				content: ids.map((id) => ({ type: "toolCall", id, name: "read", arguments: { path: `${id}.txt` } })),
+			},
 			...ids.map((id) => ({ role: "toolResult", toolCallId: id, content: `body of ${id}` })),
 		];
 	};
@@ -381,8 +425,13 @@ describe("conversion survives repairToolPairing", () => {
 		const repaired = repairToolPairing(converted);
 
 		assert.deepEqual(repaired, converted);
-		const results = repaired.flatMap((m) => (Array.isArray(m.content) ? m.content : [])).filter((b) => b.type === "tool_result");
-		assert.deepEqual(results.map((b) => b.content), ["body of t0", "body of t1", "body of t2"]);
+		const results = repaired
+			.flatMap((m) => (Array.isArray(m.content) ? m.content : []))
+			.filter((b) => b.type === "tool_result");
+		assert.deepEqual(
+			results.map((b) => b.content),
+			["body of t0", "body of t1", "body of t2"],
+		);
 	});
 
 	// Mid-turn steering puts a user message between the results (which is why
@@ -390,15 +439,27 @@ describe("conversion survives repairToolPairing", () => {
 	// keep a parallel call together. CC writes the same turn as results-then-steer.
 	it("collects results that a steer interleaved, keeping the steer after them", () => {
 		const msgs = [
-			{ role: "assistant", content: [{ type: "toolCall", id: "t0", name: "read", arguments: {} }, { type: "toolCall", id: "t1", name: "read", arguments: {} }] },
+			{
+				role: "assistant",
+				content: [
+					{ type: "toolCall", id: "t0", name: "read", arguments: {} },
+					{ type: "toolCall", id: "t1", name: "read", arguments: {} },
+				],
+			},
 			{ role: "toolResult", toolCallId: "t0", content: "first" },
 			{ role: "user", content: "actually, also check X" },
 			{ role: "toolResult", toolCallId: "t1", content: "second" },
 		];
 		const repaired = repairToolPairing(convert(msgs));
 
-		assert.deepEqual(repaired.map((m) => m.role), ["assistant", "user", "user"]);
-		assert.deepEqual(repaired[1].content.map((b) => b.content), ["first", "second"]);
+		assert.deepEqual(
+			repaired.map((m) => m.role),
+			["assistant", "user", "user"],
+		);
+		assert.deepEqual(
+			repaired[1].content.map((b) => b.content),
+			["first", "second"],
+		);
 		assert.equal(repaired[2].content, "actually, also check X");
 	});
 
@@ -407,23 +468,39 @@ describe("conversion survives repairToolPairing", () => {
 	// message after the assistant, so the results have to be inserted ahead of it.
 	it("collects results that a steer preceded", () => {
 		const msgs = [
-			{ role: "assistant", content: [{ type: "toolCall", id: "t0", name: "read", arguments: {} }, { type: "toolCall", id: "t1", name: "read", arguments: {} }] },
+			{
+				role: "assistant",
+				content: [
+					{ type: "toolCall", id: "t0", name: "read", arguments: {} },
+					{ type: "toolCall", id: "t1", name: "read", arguments: {} },
+				],
+			},
 			{ role: "user", content: "actually stop and check X" },
 			{ role: "toolResult", toolCallId: "t0", content: "first" },
 			{ role: "toolResult", toolCallId: "t1", content: "second" },
 		];
 		const repaired = repairToolPairing(convert(msgs));
 
-		assert.deepEqual(repaired.map((m) => m.role), ["assistant", "user", "user"]);
-		assert.deepEqual(repaired[1].content.map((b) => b.content), ["first", "second"]);
+		assert.deepEqual(
+			repaired.map((m) => m.role),
+			["assistant", "user", "user"],
+		);
+		assert.deepEqual(
+			repaired[1].content.map((b) => b.content),
+			["first", "second"],
+		);
 		assert.equal(repaired[2].content, "actually stop and check X");
 	});
 
 	it("leaves no synthetic result stubs behind", () => {
 		const repaired = repairToolPairing(convert(parallelCall(5)));
 
-		const stubs = repaired.flatMap((m) => (Array.isArray(m.content) ? m.content : []))
-			.filter((b) => b.type === "tool_result" && typeof b.content === "string" && b.content.includes("no tool result recorded"));
+		const stubs = repaired
+			.flatMap((m) => (Array.isArray(m.content) ? m.content : []))
+			.filter(
+				(b) =>
+					b.type === "tool_result" && typeof b.content === "string" && b.content.includes("no tool result recorded"),
+			);
 		assert.deepEqual(stubs, []);
 	});
 });
@@ -436,7 +513,10 @@ describe("aborted assistant turns", () => {
 			{ role: "user", content: [{ type: "text", text: "second ask" }] },
 		]);
 		assert.equal(result.length, 2);
-		assert.deepEqual(result.map((m) => m.role), ["user", "user"]);
+		assert.deepEqual(
+			result.map((m) => m.role),
+			["user", "user"],
+		);
 	});
 
 	it("a turn whose blocks were all filtered still says so", () => {
@@ -472,33 +552,48 @@ describe("aborted assistant turns", () => {
 			{ role: "assistant", content: [] },
 			{ role: "toolResult", toolCallId: "t1", content: "ok" },
 		]);
-		assert.deepEqual(result.map((m) => m.role), ["assistant", "user"]);
+		assert.deepEqual(
+			result.map((m) => m.role),
+			["assistant", "user"],
+		);
 		assert.equal(result[1].content[0].tool_use_id, "t1");
 	});
 });
 
 describe("dropped-content accounting", () => {
 	it("counts stripped thinking by provider and aborted turns", () => {
-		const { dropped } = convertPiMessages([
-			{ role: "assistant", provider: "openrouter", content: [
-				{ type: "thinking", thinking: "reasoning" },
-				{ type: "text", text: "the answer" },
-			]},
-			{ role: "assistant", content: [] },
-			{ role: "assistant", provider: "claude-bridge", content: [
-				{ type: "thinking", thinking: "mine", thinkingSignature: "sig" },
-			]},
-		], new Map());
+		const { dropped } = convertPiMessages(
+			[
+				{
+					role: "assistant",
+					provider: "openrouter",
+					content: [
+						{ type: "thinking", thinking: "reasoning" },
+						{ type: "text", text: "the answer" },
+					],
+				},
+				{ role: "assistant", content: [] },
+				{
+					role: "assistant",
+					provider: "claude-bridge",
+					content: [{ type: "thinking", thinking: "mine", thinkingSignature: "sig" }],
+				},
+			],
+			new Map(),
+		);
 		assert.equal(dropped.thinking, 1);
 		assert.deepEqual([...dropped.providers], ["openrouter"]);
 		assert.equal(dropped.abortedTurns, 1);
 	});
 
 	it("reports nothing when everything converts", () => {
-		const { dropped } = convertPiMessages([
-			{ role: "user", content: [{ type: "text", text: "hi" }] },
-			{ role: "assistant", content: [{ type: "text", text: "hello" }] },
-		], new Map());
+		const { dropped } = convertPiMessages(
+			[
+				{ role: "user", content: [{ type: "text", text: "hi" }] },
+				{ role: "assistant", content: [{ type: "text", text: "hello" }] },
+			],
+			new Map(),
+		);
 		assert.equal(dropped.thinking, 0);
 		assert.equal(dropped.abortedTurns, 0);
 		assert.equal(dropped.other.size, 0);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 // Integration tests for session-rebuild mechanics.
 //
 // syncSharedSession's REBUILD path wipes the existing session file and
@@ -23,13 +24,13 @@
 //
 // Requires: ANTHROPIC_API_KEY or CC logged in.
 
-import { test } from "node:test";
 import assert from "node:assert";
 import { randomUUID } from "node:crypto";
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { createSession, openSession, deleteSession } from "cc-session-io";
+import { test } from "node:test";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import { createSession, deleteSession, openSession } from "cc-session-io";
 
 const CWD = process.cwd();
 const MODEL = "claude-haiku-4-5";
@@ -76,16 +77,20 @@ function countRecords(jsonlPath) {
 					if (block.type === "tool_result") toolResult++;
 				}
 			}
-		} catch { /* skip malformed */ }
+		} catch {
+			/* skip malformed */
+		}
 	}
 	return { total: lines.length, byType, toolUse, toolResult };
 }
 
 async function askToken(sid) {
-	return drain(query({
-		prompt: "What token did I ask you to remember? Reply with just the word.",
-		options: { resume: sid, model: MODEL, cwd: CWD, permissionMode: "bypassPermissions" },
-	}));
+	return drain(
+		query({
+			prompt: "What token did I ask you to remember? Reply with just the word.",
+			options: { resume: sid, model: MODEL, cwd: CWD, permissionMode: "bypassPermissions" },
+		}),
+	);
 }
 
 test("openSession + clear + re-add: CC resolves the replaced content", { timeout: 120_000 }, async () => {
@@ -106,7 +111,9 @@ test("openSession + clear + re-add: CC resolves the replaced content", { timeout
 	assert.doesNotMatch(r2, /foo/i, `stale FOO returned — CC may be caching by UUID: ${r2}`);
 });
 
-test("deleteSession + createSession({sessionId}): sessionId preserved across full wipe", { timeout: 120_000 }, async () => {
+test("deleteSession + createSession({sessionId}): sessionId preserved across full wipe", {
+	timeout: 120_000,
+}, async () => {
 	const sid = randomUUID();
 	seedTextSession(sid, "ALPHA");
 
@@ -138,10 +145,12 @@ test("rebuild over CC-written tool_use records resolves cleanly", { timeout: 180
 
 	// Provoke a real tool call so CC writes tool_use/tool_result records to the
 	// session file mid-execution. package.json is guaranteed to exist at CWD.
-	await drain(query({
-		prompt: "Use the Read tool to read package.json and tell me the top-level name field (one word).",
-		options: { resume: sid, model: MODEL, cwd: CWD, permissionMode: "bypassPermissions" },
-	}));
+	await drain(
+		query({
+			prompt: "Use the Read tool to read package.json and tell me the top-level name field (one word).",
+			options: { resume: sid, model: MODEL, cwd: CWD, permissionMode: "bypassPermissions" },
+		}),
+	);
 
 	const afterToolUse = countRecords(s1.jsonlPath);
 	assert.ok(
@@ -164,7 +173,11 @@ test("rebuild over CC-written tool_use records resolves cleanly", { timeout: 180
 	const afterRebuild = countRecords(s2.jsonlPath);
 	assert.strictEqual(afterRebuild.total, 2, `rebuild should leave exactly 2 records, got ${afterRebuild.total}`);
 	assert.strictEqual(afterRebuild.toolUse, 0, `rebuild should wipe tool_use records, got ${afterRebuild.toolUse}`);
-	assert.strictEqual(afterRebuild.toolResult, 0, `rebuild should wipe tool_result records, got ${afterRebuild.toolResult}`);
+	assert.strictEqual(
+		afterRebuild.toolResult,
+		0,
+		`rebuild should wipe tool_result records, got ${afterRebuild.toolResult}`,
+	);
 
 	const r2 = await askToken(sid);
 	assert.match(r2, /delta/i, `expected DELTA after rebuild over tool records, got: ${r2}`);

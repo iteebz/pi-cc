@@ -1,8 +1,8 @@
-import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { afterEach, describe, it } from "node:test";
 
 const { extractUserPromptBlocks } = await import("../src/turn.js");
 const { setSharedSession, syncSharedSession } = await import("../src/session.js");
@@ -10,10 +10,13 @@ const { setSharedSession, syncSharedSession } = await import("../src/session.js"
 describe("extractUserPromptBlocks", () => {
 	it("keeps images and text from the trailing run of user messages", () => {
 		const blocks = extractUserPromptBlocks([
-			{ role: "user", content: [
-				{ type: "text", text: "describe this" },
-				{ type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
-			] },
+			{
+				role: "user",
+				content: [
+					{ type: "text", text: "describe this" },
+					{ type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
+				],
+			},
 			{ role: "user", content: "(attachment preview: [#image 1])" },
 		]);
 
@@ -38,11 +41,14 @@ describe("extractUserPromptBlocks", () => {
 	// the debug line that reads .length off the missing field.
 	it("skips malformed image blocks instead of throwing", () => {
 		const blocks = extractUserPromptBlocks([
-			{ role: "user", content: [
-				{ type: "text", text: "look" },
-				{ type: "image", mimeType: "image/png" },
-				{ type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
-			] },
+			{
+				role: "user",
+				content: [
+					{ type: "text", text: "look" },
+					{ type: "image", mimeType: "image/png" },
+					{ type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
+				],
+			},
 		]);
 
 		assert.deepEqual(blocks, [
@@ -77,10 +83,14 @@ describe("history/prompt split", () => {
 				{ role: "assistant", content: [{ type: "text", text: "earlier answer" }], timestamp: 2 },
 				// The current turn: real image-bearing message plus an extension's
 				// trailing display-only message (issue #34).
-				{ role: "user", content: [
-					{ type: "text", text: "describe this" },
-					{ type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
-				], timestamp: 3 },
+				{
+					role: "user",
+					content: [
+						{ type: "text", text: "describe this" },
+						{ type: "image", mimeType: "image/png", data: "aW1hZ2U=" },
+					],
+					timestamp: 3,
+				},
 				{ role: "user", content: "(attachment preview: [#image 1])", timestamp: 4 },
 			];
 

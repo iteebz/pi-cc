@@ -47,18 +47,29 @@ export class QueryContext {
 	 *  still a reply, and a handler left awaiting a subprocess that is gone keeps
 	 *  CC's tools/call open forever, which wedges pi's turn behind it. */
 	releasePendingToolCalls(reason: string): void {
-		for (const pending of this.pendingToolCalls.values()) pending.resolve({ content: [{ type: "text", text: reason }] });
+		for (const pending of this.pendingToolCalls.values())
+			pending.resolve({ content: [{ type: "text", text: reason }] });
 		this.pendingToolCalls.clear();
 		this.pendingResults.clear();
 	}
 
 	resetTurnState(model: Model<any>): void {
 		this.turnOutput = {
-			role: "assistant", content: [],
-			api: model.api, provider: model.provider, model: model.id,
-			usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0,
-				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
-			stopReason: "stop", timestamp: Date.now(),
+			role: "assistant",
+			content: [],
+			api: model.api,
+			provider: model.provider,
+			model: model.id,
+			usage: {
+				input: 0,
+				output: 0,
+				cacheRead: 0,
+				cacheWrite: 0,
+				totalTokens: 0,
+				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+			},
+			stopReason: "stop",
+			timestamp: Date.now(),
 		};
 		this.turnStarted = false;
 		this.turnSawStreamEvent = false;
@@ -71,7 +82,9 @@ export class QueryContext {
 
 let _ctx = new QueryContext();
 
-export function ctx(): QueryContext { return _ctx; }
+export function ctx(): QueryContext {
+	return _ctx;
+}
 
 // Test-only: replace the module-level context so test files start clean.
 // Not called from production.
@@ -91,7 +104,11 @@ export function contextForToolResults(results: McpResult[]): QueryContext | unde
 		const id = result.toolCallId;
 		if (!id) continue;
 		for (const queryCtx of activeQueryContexts) {
-			if (queryCtx.pendingToolCalls.has(id) || queryCtx.pendingResults.has(id) || queryCtx.turnToolCallIds.includes(id)) {
+			if (
+				queryCtx.pendingToolCalls.has(id) ||
+				queryCtx.pendingResults.has(id) ||
+				queryCtx.turnToolCallIds.includes(id)
+			) {
 				return queryCtx;
 			}
 		}
@@ -113,7 +130,7 @@ export function reportLeaks(label: string): void {
 	const liveStreams = [...activeQueryContexts].filter((c) => c.promptStream !== null).length;
 	if (activeQueryContexts.size === 0 && pendingCalls === 0 && liveStreams === 0) return;
 	debug(
-		`WARNING: ${label} left state behind — contexts=${activeQueryContexts.size} `
-		+ `pendingToolCalls=${pendingCalls} promptStreams=${liveStreams}`,
+		`WARNING: ${label} left state behind — contexts=${activeQueryContexts.size} ` +
+			`pendingToolCalls=${pendingCalls} promptStreams=${liveStreams}`,
 	);
 }
