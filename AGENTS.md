@@ -1,10 +1,21 @@
 # Agent Guidelines
 
+## Ownership
+
+This is **our** fork, maintained purely for the distil builder harness. It exists
+to solve one problem: Claude integration into pi (provider + AskClaude tool),
+better than maintaining our own adapter. It works. It is ours.
+
+- Upstream (elidickinson) is dead to us — no pulling, no PRs, no issue tracking.
+- Not published to npm. No changelog, no release process, no version bumps.
+  `CHANGELOG.md` and `TODO.md` are historical record only; do not maintain them.
+- Change freely. The only constraint is that the distil builder harness keeps
+  working: verify with the tests before committing.
+
 ## Restricted Actions
 
-Do **not** auto-commit.
-
-Do **not** interact with the public without explicit permission. For example, do not open PRs or comment on github issues unless I say so.
+Do **not** interact with the public without explicit permission — no PRs,
+no GitHub comments, no publishing.
 
 ## Claims about how Claude Code behaves
 
@@ -20,13 +31,10 @@ block per record while cc-session-io stores one record per message.
 Better still, prove it with a live probe. `tests/int-cc-contracts.mjs` pins each
 undocumented behavior we depend on against the installed CC/SDK and is the right
 home for a new assumption; `diag/capture-proxy.mjs` captures the actual request
-bodies when the question is what CC sends. `claude-code-rip/` lags the installed
-CLI by an unknown margin, so read it for mechanism, never for current behavior:
-what it gates, defaults, or omits may already have changed. And before
-reverse-engineering an SDK option at all, grep
-`node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts` — it documents every
-settings field, several of which solve problems the CC source makes look
-intractable.
+bodies when the question is what CC sends. And before reverse-engineering an SDK
+option at all, grep `node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts` — it
+documents every settings field, several of which solve problems the CC source
+makes look intractable.
 
 The same skepticism applies to any *rate* computed from the debug log. Before
 believing one, check the metric against a case whose answer you know: the
@@ -35,36 +43,12 @@ should read it back, which turned every tool-heavy turn into a false break and
 manufactured a dose-response that looked like a real finding.
 
 Bin by era before comparing groups. A correlation computed over a window that
-straddles the onset of the phenomenon will credit whatever else changed. Three
-independent analyses agreed one account state was safe on 5,611 clean requests —
-every one of which predated the first failure; switching to that state reproduced
-the failure in five minutes.
+straddles the onset of the phenomenon will credit whatever else changed.
 
 Five wrong conclusions across two sessions came from skipping the above.
 
-## Changelog
-
-Maintain an entry in the `## UNRELEASED` section at the top of `CHANGELOG.md` for every significant change, using the existing format:
-
-```
-- **Tag: summary** — detail
-```
-
-Do not add changelog entries for docs-only changes. If multiple entries in the UNRELEASED section pertain to the same feature, try to combine them into one entry,
-
-Tags: `Add`, `Fix`, `Refactor`, `Tests`, `Bump`, `Deprecate`, `Remove`.
-
-## Release
-
-No build step — the package ships `src` TypeScript as-is (see `files` in `package.json`). To cut version `X.Y.Z`:
-
-1. **Changelog** — rename the `## UNRELEASED` section to `## X.Y.Z — YYYY-MM-DD`.
-2. **Bump** — set `version` to `X.Y.Z` in `package.json`.
-3. **Commit** — `git commit -m "Release X.Y.Z"` (changelog + package.json only).
-4. **Tag** — `git tag vX.Y.Z` (note the `v` prefix).
-5. **Push commit and tag together** — `git push --follow-tags`. 
-6. **Publish** — `npm login` and `npm publish`.
-
 ## Tests
 
-Smoke tests typically need to run outside a sandbox because they access local pi/Claude settings and auth state.
+Unit tests: `npm run test:unit`. Full suite (`npm test`) runs integration +
+smoke tests and typically needs to run outside a sandbox because it accesses
+local pi/Claude settings and auth state.

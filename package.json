@@ -1,7 +1,7 @@
 {
   "name": "pi-claude-bridge",
   "version": "0.7.0",
-  "private": false,
+  "private": true,
   "description": "Pi extension that uses Claude Code (via Agent SDK) as a model provider and adds an AskClaude tool.",
   "keywords": [
     "pi-package",
@@ -14,7 +14,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/elidickinson/pi-claude-bridge.git"
+    "url": "git+https://github.com/iteebz/pi-claude-bridge.git"
   },
   "engines": {
     "node": ">=20"
