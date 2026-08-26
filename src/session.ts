@@ -20,12 +20,6 @@ export interface SessionState {
   /** Force the next sync down REBUILD: pi mutated its messages out from under
    *  us, or an abort left the JSONL indeterminate. */
   needsRebuild?: boolean;
-  /** Abort only. The killed CC subprocess may still flush a late "[Request
-   *  interrupted by user]" record; reusing the path would race that orphan
-   *  write and break CC's parent-uuid chain on the next resume. Set, REBUILD
-   *  takes a fresh UUID and skips deleteSession so the orphan lands on a dead
-   *  inode. Compact/tree have no concurrent writer and must not set this. */
-  forceRotate?: boolean;
 }
 
 export interface SyncResult {
@@ -55,11 +49,16 @@ export function markNeedsRebuild(reason: string): void {
   sharedSession = { ...sharedSession, needsRebuild: true };
 }
 
-/** REBUILD and take a fresh UUID — the killed subprocess may still write. */
+/** REBUILD under the same UUID. The subprocess is already dead by the time
+ *  this runs — close() killed it, and the for-await loop confirmed no more
+ *  messages. Keeping the UUID preserves the prompt cache prefix across aborts.
+ *  (forceRotate was removed: it guaranteed a cold cache on every abort, and
+ *  the race it guarded against — a late orphan write — cannot happen after
+ *  close() + loop exit.) */
 export function markAborted(): void {
   if (!sharedSession) return;
-  sharedSession = { ...sharedSession, needsRebuild: true, forceRotate: true };
-  debug(`provider: abort detected, marked sharedSession needsRebuild + forceRotate`);
+  sharedSession = { ...sharedSession, needsRebuild: true };
+  debug(`provider: abort detected, marked sharedSession needsRebuild`);
 }
 
 export function setCursor(cursor: number): void {
@@ -254,19 +253,17 @@ export function syncSharedSession(
   }
   const previousSessionId = sharedSession?.sessionId;
   const previousCursor = sharedSession?.cursor ?? 0;
-  // Rebuild in place under the existing UUID, unless forceRotate says there is a
-  // concurrent writer we shouldn't race.
-  const preserveId = previousSessionId !== undefined && !sharedSession?.forceRotate;
   // Before deleteSession — it wipes the file these live in.
   const carried = previousSessionId !== undefined ? readCarriedAttachments(previousSessionId, cwd) : [];
-  if (preserveId) {
+  if (previousSessionId !== undefined) {
     // Wipe prior jsonl + companion dir (no-op if nothing to wipe).
-    deleteSession(previousSessionId!, cwd, process.env.CLAUDE_CONFIG_DIR);
+    deleteSession(previousSessionId, cwd, process.env.CLAUDE_CONFIG_DIR);
   }
+  // Reuse the UUID across rebuilds so the prompt cache prefix survives.
   const session = createSession({
     projectPath: cwd,
     claudeDir: process.env.CLAUDE_CONFIG_DIR,
-    ...(preserveId ? { sessionId: previousSessionId } : {}),
+    ...(previousSessionId ? { sessionId: previousSessionId } : {}),
     ...(modelId ? { model: modelId } : {}),
   });
   convertAndImportMessages(session, priorMessages, customToolNameToSdk, carried);
@@ -278,19 +275,15 @@ export function syncSharedSession(
     debug(
       `Case 2: first turn with ${priorMessages.length} prior messages → session ${session.sessionId.slice(0, 8)}, ${session.records.length} records`,
     );
-  } else if (preserveId) {
+  } else {
     const missedCount = priorMessages.length - previousCursor;
     debug(
       `Case 4: ${missedCount} missed messages, ${priorMessages.length} total → rewrote session ${session.sessionId.slice(0, 8)} (same id), ${session.records.length} records`,
     );
-  } else {
-    debug(
-      `Case 4 post-abort: ${priorMessages.length} total → new session ${session.sessionId.slice(0, 8)} (was ${previousSessionId.slice(0, 8)}, rotated to avoid race with orphan writer), ${session.records.length} records`,
-    );
   }
   debugSessionPaths(`${session.sessionId.slice(0, 8)}`, cwd, session.jsonlPath);
   debug(
-    `syncResult: path=rebuild sessionId=${session.sessionId} priors=${priorMessages.length} ${previousSessionId === undefined ? "first" : preserveId ? "preserved" : "rotated-post-abort"}`,
+    `syncResult: path=rebuild sessionId=${session.sessionId} priors=${priorMessages.length} ${previousSessionId === undefined ? "first" : "preserved"}`,
   );
   return { sessionId: session.sessionId };
 }
