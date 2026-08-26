@@ -1,7 +1,8 @@
 # Agent Guidelines
 
-The single agent-facing doc for this repo. Reference material lives in
-`README.md`.
+The single agent-facing doc for this repo. Pull `docs/` for reference:
+`docs/config.md` (settings), `docs/debugging.md` (logs), `docs/known-issues.md`
+(gotchas + CC behavior forensics).
 
 ## Ownership
 
