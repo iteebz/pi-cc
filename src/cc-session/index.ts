@@ -7,7 +7,7 @@
  */
 
 export { getClaudeDir, getProjectDir, getSessionPath } from "./paths.js";
-export { repairToolPairing, repairWithOrigin } from "./repair.js";
+export { repairToolPairing } from "./repair.js";
 export { createSession, deleteSession, openSession, Session } from "./session.js";
 export type {
   AssistantMessagePayload,
