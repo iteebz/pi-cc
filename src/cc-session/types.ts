@@ -147,6 +147,9 @@ export interface ImportAttachment {
 
 export interface CreateSessionOptions {
   projectPath: string;
+  /** Derive UUIDs deterministically from sessionId + record index.
+   *  Stabilizes CC's [id:] tags across rebuilds for prompt cache reuse. */
+  deterministicUuids?: boolean;
   claudeDir?: string;
   cwd?: string;
   gitBranch?: string;

@@ -6,7 +6,7 @@
  * field shapes, and slug generation all match CC's own writer.
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { parseJsonl, serializeRecord } from "./jsonl.js";
@@ -59,6 +59,8 @@ export class Session {
   private _model: string;
   private _fileExists: boolean;
   private _nextTimestamp: number;
+  private _recordCounter: number;
+  private _deterministicUuids: boolean;
 
   constructor(opts: {
     sessionId: string;
@@ -71,6 +73,10 @@ export class Session {
     model?: string;
     records?: JsonlRecord[];
     fileExists?: boolean;
+    /** When true, derive UUIDs from sessionId + record index instead of
+     *  randomUUID(). Same session rebuilt twice produces identical UUIDs,
+     *  which stabilizes CC's [id:] tags and preserves the prompt cache. */
+    deterministicUuids?: boolean;
   }) {
     this.sessionId = opts.sessionId;
     this.projectPath = opts.projectPath;
@@ -83,6 +89,8 @@ export class Session {
     this._records = opts.records ?? [];
     this._fileExists = opts.fileExists ?? false;
     this._nextTimestamp = Date.now();
+    this._recordCounter = opts.records?.length ?? 0;
+    this._deterministicUuids = opts.deterministicUuids ?? false;
 
     // Find the last uuid in the chain for appending. Attachments are links in
     // the chain, so one at the tail is the next record's parent.
@@ -111,8 +119,28 @@ export class Session {
     return this.records.filter((r): r is AttachmentRecord => r.type === "attachment");
   }
 
+  /** Generate a UUID — deterministic from sessionId + counter when enabled,
+   *  random otherwise. Deterministic UUIDs ensure CC's `[id:]` tags (derived
+   *  from UUID via `deriveShortMessageId`) are identical across rebuilds. */
+  private nextUuid(): string {
+    if (this._deterministicUuids) {
+      const index = this._recordCounter++;
+      const hash = createHash("sha256").update(`${this.sessionId}:${index}`).digest("hex");
+      // Format as RFC 4122 UUID v4 shape (version nibble = 4, variant bits = 10xx)
+      return [
+        hash.slice(0, 8),
+        hash.slice(8, 12),
+        `4${hash.slice(13, 16)}`,
+        `${((parseInt(hash[16], 16) & 0x3) | 0x8).toString(16)}${hash.slice(17, 20)}`,
+        hash.slice(20, 32),
+      ].join("-");
+    }
+    this._recordCounter++;
+    return randomUUID();
+  }
+
   private baseFields(): Omit<UserRecord, "type" | "message"> {
-    const uuid = randomUUID();
+    const uuid = this.nextUuid();
     const record = {
       uuid,
       parentUuid: this._lastUuid,
@@ -157,7 +185,7 @@ export class Session {
    * 3,526 records chain through an attachment, none skip it.
    */
   addAttachment(attachment: { type: string; [key: string]: unknown }, opts?: { parentUuid?: string | null }): string {
-    const uuid = randomUUID();
+    const uuid = this.nextUuid();
     const record: AttachmentRecord = {
       type: "attachment",
       attachment,
@@ -316,6 +344,7 @@ export class Session {
     this._pendingRecords = [];
     this._lastUuid = null;
     this._nextTimestamp = Date.now();
+    this._recordCounter = 0;
     this._fileExists = false;
     removeSessionFiles(this.jsonlPath);
   }
@@ -376,6 +405,7 @@ export function createSession(opts: CreateSessionOptions): Session {
     version: opts.version,
     gitBranch: opts.gitBranch,
     model: opts.model,
+    deterministicUuids: opts.deterministicUuids,
   });
 }
 

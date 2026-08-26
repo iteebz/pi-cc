@@ -4,9 +4,11 @@
 // a replayed prompt. Sole owner of `sharedSession` — every mutation is a named
 // verb here, so "who moved the cursor" is a grep.
 
+import { existsSync, readFileSync } from "node:fs";
 import type { Context } from "@earendil-works/pi-ai";
 import { type CarriedAttachment, collectCarriedAttachments, placeCarriedAttachments } from "./attachments.js";
 import { createSession, deleteSession, openSession, repairToolPairing } from "./cc-session/index.js";
+import { getSessionPath, normalizeProjectPath } from "./cc-session/paths.js";
 import { convertPiMessages } from "./convert.js";
 import { DEBUG, DEBUG_LOG_PATH, debug, debugSessionPaths, diagDump, safeRealpath } from "./debug.js";
 import { verifyWrittenSession as _verifyWrittenSession } from "./session-verify.js";
@@ -49,16 +51,36 @@ export function markNeedsRebuild(reason: string): void {
   sharedSession = { ...sharedSession, needsRebuild: true };
 }
 
-/** REBUILD under the same UUID. The subprocess is already dead by the time
- *  this runs — close() killed it, and the for-await loop confirmed no more
- *  messages. Keeping the UUID preserves the prompt cache prefix across aborts.
- *  (forceRotate was removed: it guaranteed a cold cache on every abort, and
- *  the race it guarded against — a late orphan write — cannot happen after
- *  close() + loop exit.) */
+/** After abort, validate the JSONL CC left behind. If every line parses,
+ *  the file is usable as-is — skip the rebuild so the next sync hits REUSE,
+ *  keeping the prompt cache warm (same file = same bytes = cache hit).
+ *
+ *  The subprocess is already dead by the time this runs — close() killed it,
+ *  and the for-await loop confirmed no more messages. */
 export function markAborted(): void {
   if (!sharedSession) return;
+  if (isSessionFileClean(sharedSession.sessionId, sharedSession.cwd)) {
+    debug(`provider: abort detected, JSONL is clean — skipping rebuild for cache preservation`);
+    // Don't set needsRebuild: the next syncSharedSession will hit REUSE.
+    return;
+  }
   sharedSession = { ...sharedSession, needsRebuild: true };
-  debug(`provider: abort detected, marked sharedSession needsRebuild`);
+  debug(`provider: abort detected, JSONL is damaged — marked needsRebuild`);
+}
+
+/** Check if the session JSONL file is intact: exists and every line parses. */
+function isSessionFileClean(sessionId: string, cwd: string): boolean {
+  try {
+    const jsonlPath = getSessionPath(sessionId, normalizeProjectPath(cwd), process.env.CLAUDE_CONFIG_DIR);
+    if (!existsSync(jsonlPath)) return false;
+    const content = readFileSync(jsonlPath, "utf-8");
+    const lines = content.split("\n").filter((l) => l.trim());
+    if (lines.length === 0) return false;
+    for (const line of lines) JSON.parse(line);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function setCursor(cursor: number): void {
@@ -265,6 +287,10 @@ export function syncSharedSession(
     claudeDir: process.env.CLAUDE_CONFIG_DIR,
     ...(previousSessionId ? { sessionId: previousSessionId } : {}),
     ...(modelId ? { model: modelId } : {}),
+    // Deterministic UUIDs: same sessionId + same message order = same UUIDs
+    // across rebuilds. CC's [id:] tags are derived from UUIDs, so stable UUIDs
+    // mean stable tags mean cache-compatible prefix bytes.
+    deterministicUuids: true,
   });
   convertAndImportMessages(session, priorMessages, piNameToWire, carried);
   session.save();
