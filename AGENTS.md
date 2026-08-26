@@ -62,16 +62,20 @@ working node_modules from the same package.json.
 
 ## Architecture
 
-`src/index.ts` is the entry: registers the provider, hooks pi's session
-lifecycle, owns `streamSimple`. Everything else one layer down:
+`src/index.ts` is the entry: registers the provider and hooks pi's session
+lifecycle. `src/provider.ts` is the provider's `streamSimple` — query
+lifecycle, option assembly, abort wiring, session bookkeeping.
 
 ```
-debug → ui → query-state → turn → session → tools → stream → summary → index
+debug → ui → query-state → turn → session → tools → stream → summary → provider → index
 ```
 
 Leaves: `convert · attachments · config · models · skills · mcp-server ·
 tool-names · extract-tool-results · session-verify · prompt-capture ·
 prompt-stream`.
+
+`cc-session/` — vendored CC JSONL session I/O (types, parse, write, repair,
+path resolution). Self-contained; nothing in it imports from the bridge.
 
 ## Invariants
 
