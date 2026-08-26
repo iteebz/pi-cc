@@ -83,6 +83,10 @@ export class Session {
     this.jsonlPath = opts.jsonlPath;
     this._slug = opts.slug ?? generateSlug();
     this._cwd = opts.cwd ?? opts.projectPath;
+    // CC reads `version` for LogOption display but never gates normalization on it.
+    // Hardcoded value drifts from actual CC — a future CC version could gate compat
+    // logic on the version field. If that happens: read from the installed binary.
+    // Audited 2026-08-26 against CC 2.0.89: safe (docs/cc-source-audit.md §1).
     this._version = opts.version ?? "2.1.83";
     this._gitBranch = opts.gitBranch ?? "HEAD";
     this._model = opts.model ?? "claude-sonnet-4-6";
@@ -139,6 +143,11 @@ export class Session {
     return randomUUID();
   }
 
+  // Fields on every JSONL record. CC source audit (docs/cc-source-audit.md §1):
+  // - uuid, parentUuid, timestamp, isSidechain: load-bearing for chain walk + sort
+  // - userType, slug, entrypoint, requestId: never read by normalization
+  // - isMeta: deliberately omitted — bridge user messages are real turns, not meta
+  //   (CC skips [id:] tags for isMeta, changes merge UUID selection, strips content)
   private baseFields(): Omit<UserRecord, "type" | "message"> {
     const uuid = this.nextUuid();
     const record = {

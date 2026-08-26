@@ -12,6 +12,13 @@ import type { ContentBlock, Message } from "./types.js";
 
 /**
  * Repair tool_use / tool_result pairing in an Anthropic-format message array.
+ *
+ * CC has its own repair (`ensureToolResultPairing`, messages.ts:5120) that runs
+ * AFTER `normalizeMessagesForAPI`. The two repairs are compatible and idempotent:
+ * our synthetic results (is_error + "[no tool result recorded]") look like valid
+ * pairings to CC's repair, so it skips them. CC's repair additionally handles
+ * duplicate tool_use IDs and server_tool_use/mcp_tool_use blocks — neither can
+ * appear in bridge output. Audited 2026-08-26 (docs/cc-source-audit.md §2).
  */
 export function repairToolPairing(messages: Message[]): Message[] {
   return repairWithOrigin(messages).messages;
