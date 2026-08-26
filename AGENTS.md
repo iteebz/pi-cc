@@ -11,7 +11,7 @@ Our fork, maintained purely for the distil builder harness. Upstream
 
 - Not published to npm. No changelog, no version bumps — git history is the
   changelog.
-- Change freely and commit autonomously. Verify with `npm run check` before
+- Change freely and commit autonomously. Verify with `just check` before
   committing.
 
 ## What it is
@@ -23,7 +23,7 @@ one exception is the hosted web tools (`webTools`, off by default).
 
 Install: `pi install /path/to/pi-claude-bridge`. Installed copy lives at
 `~/.pi/agent/git/github.com/iteebz/pi-claude-bridge`.
-Ship: verify → commit → push → `pi update git:github.com/iteebz/pi-claude-bridge` → live probe.
+Ship: `just ship` (check → push → `pi update`) → live probe.
 
 ## Hardening — CC subprocess stripped to bare minimum
 
@@ -43,14 +43,22 @@ Two layers suppress all ancillary behavior from the spawned CC binary:
 
 CLAUDE.md files excluded. Pi's context replaces CC's system prompt entirely.
 
-## Tests
+## Commands
 
-- `npm run check` — **pre-commit gate**: lint + typecheck + unit suite.
-- `npm test` — full suite including live integration tests.
-- `tests/int-cache.sh` — prompt-caching prefix stability canary. Treat as
-  required for any change touching prompt assembly or session sync.
+```
+just check      # pre-commit gate: lint + typecheck + unit suite
+just test       # full suite including live integration tests
+just fmt        # auto-format
+just ship       # check → push → pi update (deploy)
+```
+
+`tests/int-cache.sh` — prompt-caching prefix stability canary. Treat as
+required for any change touching prompt assembly or session sync.
 
 Suite must run outside a sandbox (writes to `~/.claude` for session state).
+
+Toolchain: pnpm. Pi's installed copy runs npm independently — both produce
+working node_modules from the same package.json.
 
 ## Architecture
 
