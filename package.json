@@ -16,8 +16,8 @@
     "test:usage": "tests/usage-test.sh",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test:unit",
-    "lint": "biome check src tests diag",
-    "format": "biome check --write src tests diag"
+    "lint": "biome check src tests",
+    "format": "biome check --write src tests"
   },
   "type": "module",
   "dependencies": {

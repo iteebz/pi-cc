@@ -112,17 +112,6 @@ The lever for better cache hits is **fewer rebuilds**, not better conversion.
 The code already optimizes for this: same UUID across rebuilds, cursor
 advanced past trailing assistant messages, REUSE path whenever possible.
 
-## Diagnostics (`diag/`)
-
-Surviving tools from the July 2026 cache/session audit. Not part of the
-regular test suite. Run ad-hoc when debugging:
-
-- `capture-proxy.mjs` — record CC's actual API request bodies
-- `replay-write-path.mjs` — replay pi session through the write path
-- `attachment-coverage.mjs` — attachment carry-across coverage scanner
-- `AUDIT.md` — cache hit/miss baselines (7,543 requests)
-- `CONTEXT-SIZE.md` — measured SDK context windows per model
-
 ## Comments
 
 Density reference: `src/session.ts` and `src/stream.ts`. Keep only what the

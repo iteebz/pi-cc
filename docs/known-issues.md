@@ -13,8 +13,7 @@ routing behavior that dominate.
 
 The lever for better cache hits is fewer rebuilds, not better conversion.
 The code already optimizes: same UUID across rebuilds, cursor tracking,
-REUSE path whenever possible. See `diag/AUDIT.md` for the full
-investigation.
+REUSE path whenever possible.
 
 ## Files CC edits aren't carried across rebuilds
 
@@ -31,8 +30,7 @@ Before asserting "CC does X" from disk, split by provenance (CC-live records
 have real `requestId`/`promptId`; ours have `msg_syn_*`/`req_syn_*`).
 
 Better: prove it with a live probe. `tests/int-cc-contracts.mjs` pins
-undocumented behaviors against the installed SDK. `diag/capture-proxy.mjs`
-captures actual request bodies. And before reverse-engineering an SDK option,
+undocumented behaviors against the installed SDK. Before reverse-engineering an SDK option,
 grep `node_modules/@anthropic-ai/claude-agent-sdk/sdk.d.ts` — it documents
 every settings field.
 

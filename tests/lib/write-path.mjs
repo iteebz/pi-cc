@@ -1,7 +1,6 @@
-// Shared definition of what the session write path produces and what "stable"
-// means for it, used by diag/replay-write-path.mjs and
-// tests/unit-convert-determinism.mjs. Kept in one place so the diagnostic and
-// the test cannot drift into disagreeing about the same invariant.
+// Write-path test fixture: converts pi messages through the full session
+// write path (convertPiMessages → repairToolPairing → Session.importMessages)
+// and returns the cache-relevant record content. Pure computation, no API calls.
 
 import { readFileSync } from "node:fs";
 import { createSession, repairToolPairing } from "../../src/cc-session/index.js";

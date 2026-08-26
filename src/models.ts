@@ -16,7 +16,7 @@ export const MODEL_IDS_IN_ORDER = [
 // extra on some plans and is never wanted here. The registered contextWindow
 // must equal what the bridge actually serves or pi's status bar and
 // auto-compaction threshold misreport, so it is pinned rather than forwarded.
-// See diag/CONTEXT-SIZE.md for the measured SDK behavior.
+// Measured: the SDK serves 200K for bare model ids, 1M only with the [1m] suffix.
 export const CONTEXT_WINDOW = 200_000;
 
 /** Project pi-ai's model entries down to the fields pi's registerProvider

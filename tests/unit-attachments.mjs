@@ -30,7 +30,7 @@ describe("collectCarriedAttachments", () => {
     ]);
     // edited_text_file is deliberately not carried: the edit is already in pi's
     // history as a tool call, and it usually hangs off a tool-result record that
-    // has no prompt ordinal. See diag/attachment-coverage.mjs.
+    // has no prompt ordinal.
     assert.deepEqual(
       carried.map((c) => c.attachment.filename),
       ["/a.js"],

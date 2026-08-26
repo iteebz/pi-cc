@@ -7,8 +7,7 @@
 // a tool call is parked: its MCP transport is gone, so CC reads each tool call as
 // an ordinary tool error, feeds it to the model and issues another API request,
 // forever. Two incidents in the 2026-07-29 audit ran 59 and 23 minutes, and one
-// consumed enough quota to trip an account-wide 429. See diag/AUDIT.md, "Not
-// covered by these scripts".
+// consumed enough quota to trip an account-wide 429.
 //
 // So the repro shuts pi down with a tool call in flight. Nothing throws when this
 // regresses and the pi-side logs simply stop, so the assertion is on the process

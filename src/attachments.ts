@@ -20,7 +20,7 @@ import { messageContentToText } from "./convert.js";
 // the rebuild reproduces anyway. It also usually hangs off a *tool result* record
 // rather than a prompt, which has no position in the ordinal scheme below — on
 // real sessions that left 81 of them unresolvable (see
-// diag/attachment-coverage.mjs). Half-carrying a kind is worse than not claiming
+// real session data). Half-carrying a kind is worse than not claiming
 // it: the ones that slipped through would be an arbitrary subset.
 //
 // Everything else CC rewrites every turn (`skill_listing`, `task_reminder`,

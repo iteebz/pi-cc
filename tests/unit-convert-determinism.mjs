@@ -15,11 +15,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-// Shared with diag/replay-write-path.mjs so the diagnostic and this test cannot
-// drift into disagreeing about what "stable" means.
-import { settledPrefixes, transcript } from "../diag/lib/write-path.mjs";
 import { repairToolPairing } from "../src/cc-session/index.js";
 import { convertPiMessages } from "../src/convert.js";
+import { settledPrefixes, transcript } from "./lib/write-path.mjs";
 
 function assertPrefix(shorter, longer, label) {
   for (let i = 0; i < shorter.length; i++) {
