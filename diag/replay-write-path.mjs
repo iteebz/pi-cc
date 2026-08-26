@@ -26,7 +26,7 @@
 //                repairToolPairing must stand in a stub for results that have
 //                not arrived — so those lengths are reported, not failed.
 
-import { repairToolPairing } from "cc-session-io";
+import { repairToolPairing } from "../src/cc-session/index.js";
 import { convertPiMessages } from "../src/convert.js";
 import { loadPiMessages, settledPrefixes, transcript } from "./lib/write-path.mjs";
 

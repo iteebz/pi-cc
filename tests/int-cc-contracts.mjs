@@ -32,7 +32,7 @@ import { test } from "node:test";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import { createSession, openSession, repairToolPairing } from "cc-session-io";
+import { createSession, openSession, repairToolPairing } from "../src/cc-session/index.js";
 
 const CWD = process.cwd();
 const MODEL = "claude-haiku-4-5";

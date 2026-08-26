@@ -7,7 +7,7 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { after, afterEach, before, describe, it } from "node:test";
-import { getProjectDir } from "cc-session-io";
+import { getProjectDir } from "../src/cc-session/index.js";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
 const TEST_TIMEOUT = 40_000;

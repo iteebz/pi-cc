@@ -1,0 +1,106 @@
+/**
+ * Tool-pairing repair for Anthropic-format message arrays.
+ *
+ * Vendored from cc-session-io@0.4.0 (MIT). Fixes three cases that occur
+ * when sessions are interrupted or reconstructed from partial data:
+ *  1. Assistant tool_use with no matching tool_result → inject synthetic error
+ *  2. Orphan tool_result with no preceding tool_use → drop
+ *  3. Consecutive assistant messages → flush pending results between them
+ */
+
+import type { ContentBlock, Message } from "./types.js";
+
+/**
+ * Repair tool_use / tool_result pairing in an Anthropic-format message array.
+ */
+export function repairToolPairing(messages: Message[]): Message[] {
+  return repairWithOrigin(messages).messages;
+}
+
+/**
+ * The same repair, plus provenance: `origin[i]` is the index in `messages` that
+ * output message `i` came from, or `null` for one the repair synthesized. An
+ * input message the repair dropped has no entry, so a caller keying anything to
+ * input positions must handle its position being absent.
+ */
+export function repairWithOrigin(messages: Message[]): { messages: Message[]; origin: (number | null)[] } {
+  const result: Message[] = [];
+  const origin: (number | null)[] = [];
+  let pending: Set<string> | null = null; // tool_use ids from preceding assistant
+
+  const synthetic = (id: string) => ({
+    type: "tool_result" as const,
+    tool_use_id: id,
+    content: "[no tool result recorded]",
+    is_error: true as const,
+  });
+
+  const flushPending = () => {
+    if (pending && pending.size > 0) {
+      result.push({ role: "user", content: [...pending].map(synthetic) });
+      origin.push(null);
+    }
+    pending = null;
+  };
+
+  for (const [index, msg] of messages.entries()) {
+    if (msg.role === "assistant") {
+      flushPending();
+      const ids = new Set<string>();
+      if (Array.isArray(msg.content)) {
+        for (const b of msg.content) {
+          if (b.type === "tool_use" && typeof b.id === "string") ids.add(b.id);
+        }
+      }
+      result.push(msg);
+      origin.push(index);
+      pending = ids.size > 0 ? ids : null;
+      continue;
+    }
+
+    // user message
+    const blocks = Array.isArray(msg.content) ? msg.content : null;
+    const hasToolResults = blocks?.some((b) => b.type === "tool_result") ?? false;
+
+    // Fast path: nothing to repair — preserve original shape
+    if (!pending && !hasToolResults) {
+      result.push(msg);
+      origin.push(index);
+      continue;
+    }
+
+    const input: ContentBlock[] =
+      blocks ?? (typeof msg.content === "string" && msg.content ? [{ type: "text" as const, text: msg.content }] : []);
+
+    const provided = new Set<string>();
+    const kept = input.filter((b) => {
+      if (b.type !== "tool_result") return true;
+      if (pending?.has(b.tool_use_id)) {
+        provided.add(b.tool_use_id);
+        return true;
+      }
+      return false; // orphan: drop
+    });
+
+    if (pending) {
+      const missing = [...pending].filter((id) => !provided.has(id)).map(synthetic);
+      kept.unshift(...missing);
+      pending = null;
+    }
+
+    if (kept.length === 0) {
+      // Only insert a placeholder if this would otherwise leave the payload
+      // with no leading user message (API rejects payloads not starting with user).
+      if (result.length === 0) {
+        result.push({ role: "user", content: [{ type: "text", text: "[orphaned tool result removed]" }] });
+        origin.push(null);
+      }
+      continue;
+    }
+    result.push({ ...msg, content: kept });
+    origin.push(index);
+  }
+
+  flushPending();
+  return { messages: result, origin };
+}

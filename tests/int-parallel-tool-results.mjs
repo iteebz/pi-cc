@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { createSession, repairToolPairing } from "cc-session-io";
+import { createSession, repairToolPairing } from "../src/cc-session/index.js";
 import { convertPiMessages } from "../src/convert.js";
 
 const CWD = process.cwd();

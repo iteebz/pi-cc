@@ -12,7 +12,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getProjectDir } from "cc-session-io";
+import { getProjectDir } from "../src/cc-session/index.js";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
 // 32x32 solid crimson PNG — a colour the model can name unambiguously.

@@ -7,7 +7,7 @@ import { createWriteStream, existsSync, mkdirSync, rmSync, writeFileSync } from 
 import { dirname, resolve } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
-import { getClaudeDir } from "cc-session-io";
+import { getClaudeDir } from "../../src/cc-session/index.js";
 
 const DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 

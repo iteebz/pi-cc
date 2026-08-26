@@ -4,7 +4,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { repairToolPairing } from "cc-session-io";
+import { repairToolPairing } from "../src/cc-session/index.js";
 import { convertPiMessages } from "../src/convert.js";
 
 /** Shorthand: convert pi messages and return just the anthropic messages. */

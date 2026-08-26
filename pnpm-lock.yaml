@@ -14,9 +14,6 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
         version: 1.30.0(zod@4.4.3)
-      cc-session-io:
-        specifier: ^0.4.0
-        version: 0.4.0
     devDependencies:
       '@anthropic-ai/sdk':
         specifier: ^0.73.0
@@ -696,11 +693,6 @@ packages:
   call-bound@1.0.4:
     resolution: {integrity: sha512-+ys997U96po4Kx/ABpBCqhA9EuxJaQWDQg7295H4hBphv3IZg0boBKuwYpt4YXp6MZ5AmZQnU/tyMTlRpaSejg==}
     engines: {node: '>= 0.4'}
-
-  cc-session-io@0.4.0:
-    resolution: {integrity: sha512-U8N+bA6GhKmBokGx+QBy19u3v7xhNIIawKEIECysFV6tjNwoKmHGrx+EXOuTTDj20sCwjfWKIY3Xs2EjcdX3EQ==}
-    engines: {node: '>=20'}
-    hasBin: true
 
   chalk@5.6.2:
     resolution: {integrity: sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA==}
@@ -1951,8 +1943,6 @@ snapshots:
     dependencies:
       call-bind-apply-helpers: 1.0.2
       get-intrinsic: 1.3.0
-
-  cc-session-io@0.4.0: {}
 
   chalk@5.6.2: {}
 

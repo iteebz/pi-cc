@@ -30,7 +30,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { query } from "@anthropic-ai/claude-agent-sdk";
-import { createSession, deleteSession, openSession } from "cc-session-io";
+import { createSession, deleteSession, openSession } from "../src/cc-session/index.js";
 
 const CWD = process.cwd();
 const MODEL = "claude-haiku-4-5";

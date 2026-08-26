@@ -8,7 +8,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { createSession, deleteSession, openSession } from "cc-session-io";
+import { createSession, deleteSession, openSession } from "../src/cc-session/index.js";
 
 const { getSharedSession, setSharedSession, syncSharedSession } = await import("../src/session.js");
 const { setUI } = await import("../src/ui.js");

@@ -11,7 +11,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, describe, it } from "node:test";
-import { repairToolPairing } from "cc-session-io";
+import { repairToolPairing } from "../src/cc-session/index.js";
 import { verifyWrittenSession } from "../src/session-verify.js";
 
 // --- repairToolPairing ---

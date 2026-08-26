@@ -2,7 +2,7 @@
 // Extracted so they can be tested without pulling in the full extension runtime.
 
 import type { Message as PiMessage } from "@earendil-works/pi-ai";
-import type { Message as SessionMessage } from "cc-session-io";
+import type { Message as SessionMessage } from "./cc-session/index.js";
 import { MCP_TOOL_PREFIX } from "./tool-names.js";
 
 export const PROVIDER_ID = "claude-bridge";

@@ -4,7 +4,7 @@
 // the test cannot drift into disagreeing about the same invariant.
 
 import { readFileSync } from "node:fs";
-import { createSession, repairToolPairing } from "cc-session-io";
+import { createSession, repairToolPairing } from "../../src/cc-session/index.js";
 import { convertPiMessages } from "../../src/convert.js";
 
 /** Record fields that legitimately differ between two builds of the same

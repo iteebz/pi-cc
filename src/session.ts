@@ -5,8 +5,8 @@
 // verb here, so "who moved the cursor" is a grep.
 
 import type { Context } from "@earendil-works/pi-ai";
-import { createSession, deleteSession, openSession, repairToolPairing } from "cc-session-io";
 import { type CarriedAttachment, collectCarriedAttachments, placeCarriedAttachments } from "./attachments.js";
+import { createSession, deleteSession, openSession, repairToolPairing } from "./cc-session/index.js";
 import { convertPiMessages } from "./convert.js";
 import { DEBUG, DEBUG_LOG_PATH, debug, debugSessionPaths, diagDump, safeRealpath } from "./debug.js";
 import { verifyWrittenSession as _verifyWrittenSession } from "./session-verify.js";

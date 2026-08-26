@@ -22,8 +22,7 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.141",
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "cc-session-io": "^0.4.0"
+    "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=0.82.1",
