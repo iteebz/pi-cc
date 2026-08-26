@@ -1,6 +1,6 @@
 # Prompt cache investigation
 
-Status: **open investigation** — findings documented, interventions identified, none shipped yet.
+Status: **interventions A and C shipped** (9b81dfa). Intervention B (`isMeta`) deferred — unnecessary given A+C.
 
 ## The problem
 
@@ -76,27 +76,27 @@ allow). Likely server-side routing or eviction.
 
 ### Interventions the bridge CAN make
 
-**A. Stabilize UUIDs across rebuilds.**
-Currently: `randomUUID()` on every rebuild → new `[id:]` tags → cache miss.
-Proposed: derive UUIDs deterministically from message content + position, or
-preserve the UUIDs CC wrote in the previous session. The session file from the
-prior run has the UUIDs CC last saw — reusing them means the `[id:]` tags match
-what was cached.
+**A. Stabilize UUIDs across rebuilds.** ✅ SHIPPED
+Was: `randomUUID()` on every rebuild → new `[id:]` tags → cache miss.
+Now: `deterministicUuids: true` on `createSession` — UUIDs are derived as
+`SHA-256(sessionId + recordIndex)` formatted as UUID v4. Same session rebuilt
+with the same message order produces identical UUIDs → identical `[id:]` tags
+→ cache-compatible prefix bytes. Enabled on the REBUILD path in
+`syncSharedSession`.
 
-Implementation: `cc-session/session.ts:baseFields()` generates UUIDs. Either:
-- Read the old session's UUIDs before deleting it and replay them
-- Or derive UUIDs as `uuidv5(sessionId + messageIndex)` for determinism
-
-**B. Set `isMeta` on bridge-written user records.**
+**B. Set `isMeta` on bridge-written user records.** ⏸ DEFERRED
 CC skips `[id:]` tag injection for `isMeta` messages (`messages.ts:1623`).
-If bridge-written user records are marked `isMeta`, their content stays
-stable across rebuilds regardless of UUID changes. Risk: unknown — `isMeta`
-may affect other CC behaviors (display, compaction, filtering).
+Unnecessary now that UUIDs are deterministic. Also carries risk: `isMeta`
+affects CC's message merging (UUID selection), error-stripping (targets
+`isMeta` messages for content removal), and session listing (skips `isMeta`
+for first-prompt extraction). Not worth the surface area.
 
-**C. Skip rebuild on clean aborts.**
-Currently: every abort marks `needsRebuild`. Could instead validate the JSONL
-after abort — if all lines parse and tool pairing is sound, REUSE instead.
-This avoids the rebuild entirely, keeping UUIDs and everything else identical.
+**C. Skip rebuild on clean aborts.** ✅ SHIPPED
+Was: every abort set `needsRebuild` unconditionally.
+Now: `markAborted()` validates the JSONL (every line parses as JSON). If
+clean, `needsRebuild` stays unset → next `syncSharedSession` hits REUSE →
+same file = same bytes = cache hit. Only falls back to REBUILD when the file
+is actually damaged (truncated last line from a mid-write kill).
 
 ## Code references
 
