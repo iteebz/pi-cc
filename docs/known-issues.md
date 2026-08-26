@@ -1,11 +1,13 @@
 # Known issues
 
-## Rebuilds are expensive
+## Rebuilds sometimes miss the prompt cache
 
-The bridge rewrites CC's session from pi's history after aborts, `/compact`,
-tree navigation, or API errors. A rebuild loses the prompt cache ~58% of the
-time vs ~26% for a plain resume. Aborts alone are 46% of rebuilds. See
-`diag/AUDIT.md` § `audit-cache.mjs` for the full investigation.
+The bridge rewrites CC's session from pi's history after `/compact`, tree
+navigation, or API errors. A rebuild loses the prompt cache ~22% of the time
+vs ~26% for a plain resume — close to baseline. Aborts preserve the session
+UUID (the subprocess is dead before the rebuild runs), so an abort followed
+by a normal prompt usually cache-hits. See `diag/AUDIT.md` § `audit-cache.mjs`
+for the full investigation.
 
 ## Files CC edits aren't carried across rebuilds
 
