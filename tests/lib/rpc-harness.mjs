@@ -21,7 +21,7 @@ if (existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
 // --resume with "No conversation found with session ID", which reads like a
 // bridge bug. Surface the real cause up front.
 //
-// Resolve that dir the way the bridge and cc-session-io do, honouring
+// Resolve that dir the way the bridge's session writer does, honouring
 // CLAUDE_CONFIG_DIR: probing a hardcoded ~/.claude reports a sandbox failure
 // when CLAUDE_CONFIG_DIR points somewhere writable, and misses a real one when
 // it points somewhere that isn't. Create it first so a fresh config dir reads

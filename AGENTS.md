@@ -23,7 +23,7 @@ one exception is the hosted web tools (`webTools`, off by default).
 
 Install: `pi install git:github.com/iteebz/pi-cc-bridge`. Installed copy lives at
 `~/.pi/agent/git/github.com/iteebz/pi-cc-bridge`.
-Ship: `just ship` (check → push → `pi update`) → live probe.
+Ship: `just ship` (check + smoke → push → `pi update`) → live probe.
 
 After a fresh clone or repo rename, reload into pi:
 ```
@@ -55,7 +55,8 @@ CLAUDE.md files excluded. Pi's context replaces CC's system prompt entirely.
 just check      # pre-commit gate: lint + typecheck + unit suite
 just test       # full suite including live integration tests
 just fmt        # auto-format
-just ship       # check → push → pi update (deploy)
+just verify     # pre-ship probe: check + bridge smoke test
+just ship       # verify → push → pi update (deploy)
 ```
 
 `tests/int-cache.sh` — prompt-caching prefix stability canary. Treat as
@@ -63,8 +64,8 @@ required for any change touching prompt assembly or session sync.
 
 Suite must run outside a sandbox (writes to `~/.claude` for session state).
 
-Toolchain: pnpm. Pi's installed copy runs npm independently — both produce
-working node_modules from the same package.json.
+Toolchain: npm. `package-lock.json` is the single dependency graph used by
+local checks and Pi's installed copy.
 
 ## Architecture
 
@@ -95,7 +96,7 @@ path resolution). Self-contained; nothing in it imports from the bridge.
 
 ## State ownership
 
-Five module-level state slots. Every mutation is a named verb in its owning
+Six module-level state slots. Every mutation is a named verb in its owning
 module.
 
 | slot | file | lifecycle | what |
@@ -104,7 +105,7 @@ module.
 | `_ctx` | `query-state.ts` | session-scoped | top-level QueryContext (singleton); reentrant queries get fresh instances |
 | `activeQueryContexts` | `query-state.ts` | query-scoped | set of all in-flight QueryContexts; empty between turns |
 | `providerSettings` | `provider.ts` | extension-scoped | config loaded once at registration |
-| `promptCaptures` | `provider.ts` | session-scoped | keyed by assembled system prompt; see prompt-capture.ts LIABILITY warning |
+| `promptCaptures` | `provider.ts` | extension-scoped, bounded | keyed by assembled system prompt; see prompt-capture.ts LIABILITY warning |
 | `ui` | `ui.ts` | session-scoped | pi's UI handle for notifications |
 
 ## Prompt cache

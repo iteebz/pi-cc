@@ -2,29 +2,33 @@
 
 # pre-commit gate: lint + types + unit tests
 check:
-    pnpm run check
+    npm run check
 
 # full suite including live integration tests
 test:
-    pnpm test
+    npm test
 
 # lint only
 lint:
-    pnpm run lint
+    npm run lint
 
 # typecheck only
 typecheck:
-    pnpm run typecheck
+    npm run typecheck
 
 # unit tests only
 test-unit:
-    pnpm run test:unit
+    npm run test:unit
 
 # auto-format
 fmt:
-    pnpm run format
+    npm run format
 
-# ship: check → push → deploy to pi
-ship: check
+# pre-ship probe: static/unit gate + bridge-only smoke
+verify: check
+    tests/int-smoke.sh
+
+# ship: verify → push → deploy to pi
+ship: verify
     git push
     pi update git:github.com/iteebz/pi-cc-bridge

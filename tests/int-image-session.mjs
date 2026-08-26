@@ -4,7 +4,7 @@
 // into a Claude Code session, and still be visible to Claude after the resume.
 //
 // This is the one place the whole image path is exercised together: pi context →
-// convertPiMessages → cc-session-io's writer → CC's own resume. The unit tests
+// convertPiMessages → the vendored session writer → CC's own resume. The unit tests
 // cover each conversion in isolation, but every regression here (issue #34, and
 // the block-flattening that dropped images from written sessions) only shows up
 // end to end.

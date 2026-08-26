@@ -103,8 +103,8 @@ function readCarriedAttachments(sessionId: string, cwd: string): CarriedAttachme
     const previous = openSession({ sessionId, projectPath: cwd, claudeDir: process.env.CLAUDE_CONFIG_DIR });
     return collectCarriedAttachments(previous.records);
   } catch (error) {
-    // A post-abort rebuild can read a half-written file, and cc-session-io
-    // JSON.parses each line bare. Losing an attachment beats failing the turn.
+    // A post-abort rebuild can read a half-written file, and the session reader
+    // parses each line eagerly. Losing an attachment beats failing the turn.
     debug(`WARNING: could not read attachments from session ${sessionId.slice(0, 8)}:`, error);
     return [];
   }

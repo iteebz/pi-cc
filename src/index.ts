@@ -63,6 +63,7 @@ export default function (pi: ExtensionAPI) {
   pi.on("session_shutdown", () => {
     reportLeaks("session_shutdown");
     clearSession("session_shutdown");
+    setUI(null);
   });
 
   pi.on("session_before_compact", async (event, ctx) => {

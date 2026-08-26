@@ -20,7 +20,6 @@ import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
 const TIMEOUT = 120_000;
 const MODEL = "claude-bridge/claude-sonnet-4-6";
-const [provider, modelId] = MODEL.split("/");
 
 const harness = createRpcHarness({
   name: "cache-abort",
@@ -28,7 +27,7 @@ const harness = createRpcHarness({
   defaultTimeout: TIMEOUT,
 });
 
-const { startAndWait, stop, send, addListener, collectText, waitForEvent, DEBUG_LOG } = harness;
+const { startAndWait, stop, send, addListener, collectText, DEBUG_LOG } = harness;
 
 function waitForIdle(timeout = TIMEOUT) {
   return new Promise((resolve, reject) => {
@@ -45,7 +44,6 @@ function waitForIdle(timeout = TIMEOUT) {
 
 // Collect usage from turn_end events
 const usages = [];
-const usageRemove = null;
 function startUsageCollection() {
   return addListener((msg) => {
     if (msg.type === "turn_end" && msg.message?.usage) {
