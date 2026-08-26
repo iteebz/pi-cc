@@ -5,7 +5,7 @@
 The bridge rewrites CC's session from pi's history after aborts, `/compact`,
 tree navigation, or API errors. A rebuild loses the prompt cache ~58% of the
 time vs ~26% for a plain resume. Aborts alone are 46% of rebuilds. See
-`TODO.md` #1.
+`diag/AUDIT.md` § `audit-cache.mjs` for the full investigation.
 
 ## Files CC edits aren't carried across rebuilds
 
