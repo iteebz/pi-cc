@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Enforce commit rules on push — commit-msg can be bypassed with --no-verify,
+# but nothing should land in shared history without passing.
+set -euo pipefail
+
+tags="feat|fix|chore|docs|refactor|test|style|perf|ci|build|cli"
+pattern="^(${tags})\([a-z0-9/_-]+\): .+"
+fail=0
+zero=0000000000000000000000000000000000000000
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue # deletion
+  base="${remote_sha}"
+  [ "$base" = "$zero" ] && base=$(git rev-list --max-parents=0 "$local_sha")
+  for sha in $(git rev-list "$base..$local_sha"); do
+    msg=$(git log -1 --format=%s "$sha")
+    if ! echo "$msg" | grep -qE "$pattern"; then
+      echo "❌ $sha bad format: $msg" >&2
+      fail=1
+    elif [ ${#msg} -gt 72 ]; then
+      echo "❌ $sha title ${#msg} chars (max 72): $msg" >&2
+      fail=1
+    fi
+  done
+
+done
+
+exit $fail

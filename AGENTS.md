@@ -21,15 +21,18 @@ spawns the real `claude` binary as a subprocess — this is not a cloud API, it'
 a local process wrapper. Every tool call flows through pi's TUI over MCP; the
 one exception is the hosted web tools (`webTools`, off by default).
 
-Install: `pi install git:github.com/iteebz/pi-cc`. Installed copy lives at
-`~/.pi/agent/git/github.com/iteebz/pi-cc`.
-Ship: `just ship` (check + smoke → push → `pi update`) → live probe.
+Install the canonical checkout directly: `pi install ~/dev/fork/pi-cc`.
+A `git:github.com/...` source creates a separate managed clone and is not used.
+Ship: `just ship` (check + smoke → push) → fresh-process live probe.
 
 After a fresh clone or repo rename, reload into pi:
 ```
-pi uninstall git:github.com/iteebz/pi-cc   # if old fork was installed
-pi install git:github.com/iteebz/pi-cc
+pi uninstall git:github.com/iteebz/pi-cc   # if a managed clone was installed
+pi install ~/dev/fork/pi-cc
 ```
+
+Tracked hooks enforce scoped conventional commits and recheck pushed history.
+Enable them per checkout with `git config core.hooksPath hooks`.
 
 ## Hardening — CC subprocess stripped to bare minimum
 
@@ -56,7 +59,7 @@ just check      # pre-commit gate: lint + typecheck + unit suite
 just test       # full suite including live integration tests
 just fmt        # auto-format
 just verify     # pre-ship probe: check + bridge smoke test
-just ship       # verify → push → pi update (deploy)
+just ship       # verify → push (local-path install is already live)
 ```
 
 `tests/int-cache.sh` — prompt-caching prefix stability canary. Treat as

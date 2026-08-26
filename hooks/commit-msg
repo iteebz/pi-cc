@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+msg=$(head -1 "$1")
+tags="feat|fix|chore|docs|refactor|test|style|perf|ci|build|cli"
+pattern="^(${tags})\([a-z0-9/_-]+\): .+"
+
+if ! echo "$msg" | grep -qE "$pattern"; then
+  echo "❌ Bad commit message format:" >&2
+  echo "   $msg" >&2
+  echo "" >&2
+  echo "   Expected: tag(scope): short description" >&2
+  echo "   Tags: feat fix chore docs refactor test style perf ci build cli" >&2
+  exit 1
+fi
+
+if [ ${#msg} -gt 72 ]; then
+  echo "❌ Commit title is ${#msg} chars (max 72):" >&2
+  echo "   $msg" >&2
+  exit 1
+fi

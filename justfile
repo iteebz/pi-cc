@@ -28,7 +28,6 @@ fmt:
 verify: check
     tests/int-smoke.sh
 
-# ship: verify → push → deploy to pi
+# ship: verify → push; pi loads this canonical checkout directly
 ship: verify
     git push
-    pi update git:github.com/iteebz/pi-cc
