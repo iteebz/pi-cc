@@ -114,18 +114,14 @@ advanced past trailing assistant messages, REUSE path whenever possible.
 
 ## Diagnostics (`diag/`)
 
-Forensic audit scripts from the July 2026 silent-loss investigation. Not part
-of the regular test suite. Run ad-hoc when debugging session or cache issues:
+Surviving tools from the July 2026 cache/session audit. Not part of the
+regular test suite. Run ad-hoc when debugging:
 
-- `audit-cache.mjs` — cache hit/miss rate from bridge debug log
-- `audit-transcripts.mjs` — tool-pairing integrity across session files
-- `audit-warnings.mjs` — WARNING lines from bridge debug log
+- `capture-proxy.mjs` — record CC's actual API request bodies
 - `replay-write-path.mjs` — replay pi session through the write path
-- `capture-proxy.mjs` — capture actual API request bodies
-- `context-size.mjs` — measure served context window
-- `attachment-coverage.mjs` — attachment carry-across coverage
-
-See `diag/AUDIT.md` for baselines.
+- `attachment-coverage.mjs` — attachment carry-across coverage scanner
+- `AUDIT.md` — cache hit/miss baselines (7,543 requests)
+- `CONTEXT-SIZE.md` — measured SDK context windows per model
 
 ## Comments
 

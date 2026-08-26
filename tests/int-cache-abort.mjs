@@ -61,7 +61,10 @@ try {
   // --- Turn 1: establish cache ---
   console.log("Turn 1: establishing cache...");
   const collector1 = collectText();
-  await send({ type: "prompt", message: "The secret code is FOXTROT-9. Acknowledge with exactly: 'Code FOXTROT-9 received.'" });
+  await send({
+    type: "prompt",
+    message: "The secret code is FOXTROT-9. Acknowledge with exactly: 'Code FOXTROT-9 received.'",
+  });
   await waitForIdle();
   const text1 = collector1.stop();
   console.log(`  Response: ${text1.slice(0, 80)}`);
@@ -76,7 +79,8 @@ try {
   const collector2 = collectText();
   await send({
     type: "prompt",
-    message: "Write a comprehensive 3000-word essay covering the complete history of cryptography from ancient Egypt through quantum computing. Include specific dates, names, and technical details for each era.",
+    message:
+      "Write a comprehensive 3000-word essay covering the complete history of cryptography from ancient Egypt through quantum computing. Include specific dates, names, and technical details for each era.",
   });
 
   // Wait 2 seconds then abort
