@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke tests for pi-cc-bridge provider.
+# Smoke tests for pi-cc provider.
 # Requires: pi CLI, Claude Code (for Agent SDK subprocess).
 # Requires: CC_BRIDGE_TESTING_ALT_PROVIDER / CC_BRIDGE_TESTING_ALT_MODEL
 

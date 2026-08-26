@@ -1,4 +1,4 @@
-# pi-cc-bridge — pre-commit gate is `just check`
+# pi-cc — pre-commit gate is `just check`
 
 # pre-commit gate: lint + types + unit tests
 check:
@@ -31,4 +31,4 @@ verify: check
 # ship: verify → push → deploy to pi
 ship: verify
     git push
-    pi update git:github.com/iteebz/pi-cc-bridge
+    pi update git:github.com/iteebz/pi-cc

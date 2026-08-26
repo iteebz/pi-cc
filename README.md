@@ -1,4 +1,4 @@
-# pi-cc-bridge
+# pi-cc
 
 Pi extension that registers Claude Code as a model provider. The Agent SDK
 spawns the real `claude` binary as a subprocess — every tool call flows through

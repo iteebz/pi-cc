@@ -21,14 +21,14 @@ spawns the real `claude` binary as a subprocess — this is not a cloud API, it'
 a local process wrapper. Every tool call flows through pi's TUI over MCP; the
 one exception is the hosted web tools (`webTools`, off by default).
 
-Install: `pi install git:github.com/iteebz/pi-cc-bridge`. Installed copy lives at
-`~/.pi/agent/git/github.com/iteebz/pi-cc-bridge`.
+Install: `pi install git:github.com/iteebz/pi-cc`. Installed copy lives at
+`~/.pi/agent/git/github.com/iteebz/pi-cc`.
 Ship: `just ship` (check + smoke → push → `pi update`) → live probe.
 
 After a fresh clone or repo rename, reload into pi:
 ```
 pi uninstall git:github.com/iteebz/pi-cc   # if old fork was installed
-pi install git:github.com/iteebz/pi-cc-bridge
+pi install git:github.com/iteebz/pi-cc
 ```
 
 ## Hardening — CC subprocess stripped to bare minimum

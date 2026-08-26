@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Context continuity test for pi-cc-bridge provider.
+// Context continuity test for pi-cc provider.
 // Verifies that switching away from the provider and back correctly
 // preserves conversation context (all messages are flattened into
 // each query, so "missed" messages are automatically included).
@@ -26,7 +26,7 @@ const WORD_A = `alpha${Math.random().toString(36).slice(2, 6)}`;
 const WORD_B = `beta${Math.random().toString(36).slice(2, 6)}`;
 const WORD_C = `gamma${Math.random().toString(36).slice(2, 6)}`;
 
-const TEST_CWD_PREFIX = join(tmpdir(), "pi-cc-bridge-session-resume-");
+const TEST_CWD_PREFIX = join(tmpdir(), "pi-cc-session-resume-");
 const TEST_CWD = mkdtempSync(TEST_CWD_PREFIX);
 mkdirSync(join(TEST_CWD, ".pi"));
 
