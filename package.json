@@ -1,11 +1,11 @@
 {
-  "name": "pi-claude-bridge",
+  "name": "pi-cc-bridge",
   "version": "0.7.0",
   "private": true,
   "description": "Pi extension: Claude Code (via Agent SDK) as a model provider for pi.",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iteebz/pi-claude-bridge.git"
+    "url": "git+https://github.com/iteebz/pi-cc-bridge.git"
   },
   "engines": {
     "node": ">=20"

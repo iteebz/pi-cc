@@ -1,4 +1,4 @@
-# pi-claude-bridge — pre-commit gate is `just check`
+# pi-cc-bridge — pre-commit gate is `just check`
 
 # pre-commit gate: lint + types + unit tests
 check:
@@ -27,4 +27,4 @@ fmt:
 # ship: check → push → deploy to pi
 ship: check
     git push
-    pi update git:github.com/iteebz/pi-claude-bridge
+    pi update git:github.com/iteebz/pi-cc-bridge

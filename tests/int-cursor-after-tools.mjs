@@ -8,7 +8,7 @@
 // stale closure's context.messages.length (=1), causing a spurious rebuild
 // on the next turn.
 //
-// See: https://github.com/elidickinson/pi-claude-bridge/issues/4
+// See: https://github.com/elidickinson/pi-cc-bridge/issues/4
 
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
