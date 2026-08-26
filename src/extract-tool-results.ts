@@ -7,7 +7,7 @@
 
 type McpContent = Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }>;
 
-export interface McpResult {
+export interface ToolResult {
   content: McpContent;
   isError?: boolean;
   toolCallId?: string;
@@ -31,8 +31,8 @@ function toolResultToMcpContent(
 // Returns { results, stopIdx } so callers can log the walk boundary.
 export function extractAllToolResults(
   messages: Array<{ role: string; content?: unknown; toolCallId?: string; isError?: boolean; [key: string]: unknown }>,
-): { results: McpResult[]; stopIdx: number } {
-  const results: McpResult[] = [];
+): { results: ToolResult[]; stopIdx: number } {
+  const results: ToolResult[] = [];
   let stopIdx = -1;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];

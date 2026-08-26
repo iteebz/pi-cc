@@ -176,7 +176,7 @@ function pushWholeText(c: QueryContext, text: string): void {
  *  On message_stop with tool_use: ends currentPiStream so pi can execute the tool. */
 function processStreamEvent(
   message: SDKMessage,
-  customToolNameToPi: Map<string, string>,
+  wireNameToPi: Map<string, string>,
   model: Model<any>,
   c: QueryContext,
 ): void {
@@ -199,7 +199,7 @@ function processStreamEvent(
       c.turnBlocks.push({ type: "thinking", thinking: "", thinkingSignature: "", index: event.index });
       c.currentPiStream!.push({ type: "thinking_start", contentIndex: c.turnBlocks.length - 1, partial: c.turnOutput });
     } else if (event.content_block?.type === "tool_use") {
-      const piName = piToolNameFor(event.content_block.name, customToolNameToPi);
+      const piName = piToolNameFor(event.content_block.name, wireNameToPi);
       if (!piName) {
         debug(
           `processStreamEvent: skipping tool_use for unserved tool ${event.content_block.name} [${event.content_block.id}] — CC rejects it and retries`,
@@ -326,7 +326,7 @@ function processStreamEvent(
 function processAssistantMessage(
   message: SDKMessage,
   model: Model<any>,
-  customToolNameToPi: Map<string, string>,
+  wireNameToPi: Map<string, string>,
   c: QueryContext,
 ): void {
   if (c.turnSawStreamEvent) return;
@@ -358,7 +358,7 @@ function processAssistantMessage(
         partial: c.turnOutput,
       });
     } else if (block.type === "tool_use") {
-      const piName = piToolNameFor(block.name, customToolNameToPi);
+      const piName = piToolNameFor(block.name, wireNameToPi);
       if (!piName) {
         debug(
           `processAssistantMessage: skipping tool_use for unserved tool ${block.name} [${block.id}] — CC rejects it and retries`,
@@ -397,7 +397,7 @@ function processAssistantMessage(
  *  path sees it first ends the stream. */
 export async function consumeQuery(
   sdkQuery: ReturnType<typeof query>,
-  customToolNameToPi: Map<string, string>,
+  wireNameToPi: Map<string, string>,
   model: Model<any>,
   wasAborted: () => boolean,
   queryCtx: QueryContext,
@@ -445,10 +445,10 @@ export async function consumeQuery(
 
     switch (message.type) {
       case "stream_event":
-        processStreamEvent(message, customToolNameToPi, model, queryCtx);
+        processStreamEvent(message, wireNameToPi, model, queryCtx);
         break;
       case "assistant":
-        processAssistantMessage(message, model, customToolNameToPi, queryCtx);
+        processAssistantMessage(message, model, wireNameToPi, queryCtx);
         break;
       case "result":
         // Failures were recorded above the guard; this is the success path,

@@ -24,7 +24,7 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import type { McpResult } from "./extract-tool-results.js";
+import type { ToolResult } from "./extract-tool-results.js";
 
 // Claude Code stamps every tools/call with the id of the tool_use block it came
 // from. That is the only reliable way to pair a call with its result: call order
@@ -41,7 +41,7 @@ export interface McpToolDef {
   name: string;
   description: string;
   inputSchema: unknown;
-  handler: (toolCallId: string) => Promise<McpResult>;
+  handler: (toolCallId: string) => Promise<ToolResult>;
 }
 
 // MCP requires an object schema. Pi types tool parameters as any TypeBox schema,
@@ -78,7 +78,7 @@ export function createToolServer(name: string, tools: McpToolDef[]) {
         `${tool.name}: tools/call is missing _meta["${TOOL_USE_ID_META}"] — cannot pair the result with its tool call`,
       );
     }
-    // Narrowed deliberately: McpResult also carries `toolCallId`, which is our
+    // Narrowed deliberately: ToolResult also carries `toolCallId`, which is our
     // own bookkeeping for pairing and not part of MCP's CallToolResult.
     const { content, isError } = await tool.handler(toolCallId);
     return { content, isError };

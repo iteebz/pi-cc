@@ -1,13 +1,20 @@
 # Known issues
 
-## Rebuilds sometimes miss the prompt cache
+## Prompt cache miss rate is ~25% (CC/Anthropic baseline)
 
-The bridge rewrites CC's session from pi's history after `/compact`, tree
-navigation, or API errors. A rebuild loses the prompt cache ~22% of the time
-vs ~26% for a plain resume — close to baseline. Aborts preserve the session
-UUID (the subprocess is dead before the rebuild runs), so an abort followed
-by a normal prompt usually cache-hits. See `diag/AUDIT.md` § `audit-cache.mjs`
-for the full investigation.
+The ~25% miss rate is not bridge damage — it is the CC baseline. Measured:
+plain resume (no rebuild) misses **26%**, rebuild misses **22%**. Rebuilds
+are not measurably worse than native resumes.
+
+The bridge's conversion is lossy (thinking blocks dropped from other
+providers, tool IDs sanitized, aborted turns dropped), but this does not
+cause the misses. Anthropic's prompt cache has its own TTL, eviction, and
+routing behavior that dominate.
+
+The lever for better cache hits is fewer rebuilds, not better conversion.
+The code already optimizes: same UUID across rebuilds, cursor tracking,
+REUSE path whenever possible. See `diag/AUDIT.md` for the full
+investigation.
 
 ## Files CC edits aren't carried across rebuilds
 

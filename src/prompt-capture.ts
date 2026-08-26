@@ -1,3 +1,16 @@
+// KNOWN LIABILITY — the bridge's most complex and fragile module.
+//
+// Recovers what pi assembled (context files, skills, custom prompt) so the
+// bridge can forward the portable parts into Claude Code's system prompt.
+// Sub-agent inheritance is recovered by SUBSTRING SEARCH across all known
+// prompts — fragile but necessary until pi exposes an inherited-prompt field.
+// If that field lands, this module collapses to a simple map lookup.
+//
+// Failure mode: if no capture matches, the turn throws rather than silently
+// dropping the user's context files and skills. That throw is correct — a
+// silent turn with no instructions is worse — but the matching strategy means
+// any extension that *rebuilds* (not wraps) the system prompt will trigger it.
+
 import type { Skill } from "@earendil-works/pi-coding-agent";
 import { renderSkillsBlock } from "./skills.js";
 

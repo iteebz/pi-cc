@@ -8,12 +8,12 @@
 
 import type { AssistantMessage, AssistantMessageEventStream, Model } from "@earendil-works/pi-ai";
 import { debug } from "./debug.js";
-import type { McpResult } from "./extract-tool-results.js";
+import type { ToolResult } from "./extract-tool-results.js";
 import type { PromptStream } from "./prompt-stream.js";
 
 export interface PendingToolCall {
   toolName: string;
-  resolve: (result: McpResult) => void;
+  resolve: (result: ToolResult) => void;
 }
 
 export class QueryContext {
@@ -22,7 +22,7 @@ export class QueryContext {
   currentPiStream: AssistantMessageEventStream | null = null;
   latestCursor = 0;
   pendingToolCalls = new Map<string, PendingToolCall>();
-  pendingResults = new Map<string, McpResult>();
+  pendingResults = new Map<string, ToolResult>();
   /** tool_use ids emitted this turn. Sole purpose is routing a delivered result
    *  to the owning query when several queries are in flight — pairing a result
    *  to its call is done by id from Claude's tools/call _meta, not from here. */
@@ -99,7 +99,7 @@ export const activeQueryContexts = new Set<QueryContext>();
 
 /** The query that owns these tool results, or undefined if none does (e.g. the
  *  user aborted the call the results belong to). */
-export function contextForToolResults(results: McpResult[]): QueryContext | undefined {
+export function contextForToolResults(results: ToolResult[]): QueryContext | undefined {
   for (const result of results) {
     const id = result.toolCallId;
     if (!id) continue;

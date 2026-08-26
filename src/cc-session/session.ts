@@ -28,92 +28,10 @@ import type {
   UserRecord,
 } from "./types.js";
 
-// -- Slug generation --
-
-const ADJECTIVES = [
-  "ancient",
-  "bold",
-  "bright",
-  "calm",
-  "clever",
-  "cool",
-  "crimson",
-  "daring",
-  "eager",
-  "fast",
-  "fierce",
-  "gentle",
-  "golden",
-  "happy",
-  "hidden",
-  "iron",
-  "keen",
-  "lively",
-  "mighty",
-  "nimble",
-  "pale",
-  "proud",
-  "quick",
-  "rapid",
-  "sharp",
-  "silent",
-  "smooth",
-  "steady",
-  "swift",
-  "vivid",
-  "warm",
-  "wild",
-];
-
-const NOUNS = [
-  "arrow",
-  "badge",
-  "beacon",
-  "blade",
-  "brook",
-  "castle",
-  "cedar",
-  "cloud",
-  "comet",
-  "crest",
-  "dawn",
-  "drift",
-  "eagle",
-  "ember",
-  "falcon",
-  "flame",
-  "forge",
-  "gale",
-  "grove",
-  "harbor",
-  "hawk",
-  "jade",
-  "kettle",
-  "lance",
-  "maple",
-  "marsh",
-  "needle",
-  "oak",
-  "pearl",
-  "pine",
-  "ridge",
-  "river",
-  "rune",
-  "sage",
-  "shade",
-  "spark",
-  "stone",
-  "thorn",
-  "tower",
-  "wave",
-];
-
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
+// CC displays session slugs in its UI but overwrites ours on the next write,
+// so the value is irrelevant — just needs to be a valid non-empty string.
 function generateSlug(): string {
-  return `${pick(ADJECTIVES)}-${pick(ADJECTIVES)}-${pick(NOUNS)}`;
+  return `bridge-${randomUUID().slice(0, 8)}`;
 }
 
 /** Generate a synthetic Anthropic message ID. */

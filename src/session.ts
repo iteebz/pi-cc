@@ -96,10 +96,10 @@ function readCarriedAttachments(sessionId: string, cwd: string): CarriedAttachme
 function convertAndImportMessages(
   session: ReturnType<typeof createSession>,
   messages: Context["messages"],
-  customToolNameToSdk?: Map<string, string>,
+  piNameToWire?: Map<string, string>,
   carried?: readonly CarriedAttachment[],
 ): void {
-  const { anthropicMessages, sanitizedIds, dropped } = convertPiMessages(messages, customToolNameToSdk);
+  const { anthropicMessages, sanitizedIds, dropped } = convertPiMessages(messages, piNameToWire);
 
   debug(`convertAndImportMessages: ${messages.length} pi msgs → ${anthropicMessages.length} anthropic msgs`);
   debug(
@@ -202,7 +202,7 @@ function verifyWrittenSession(
 export function syncSharedSession(
   messages: Context["messages"],
   cwd: string,
-  customToolNameToSdk?: Map<string, string>,
+  piNameToWire?: Map<string, string>,
   modelId?: string,
   isReentrant = false,
 ): SyncResult {
@@ -219,7 +219,7 @@ export function syncSharedSession(
         sharedSession = { ...sharedSession, cursor: priorMessages.length, cwd };
       }
       debug(
-        `Case 3: ${trailingAssistantOnly ? "advanced cursor past trailing assistant, " : ""}resuming session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`,
+        `Case 3 REUSE: ${trailingAssistantOnly ? "advanced cursor past trailing assistant, " : ""}resuming session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`,
       );
       debug(`syncResult: path=reuse sessionId=${sharedSession.sessionId} cursor=${sharedSession.cursor}`);
       return { sessionId: sharedSession.sessionId };
@@ -237,7 +237,7 @@ export function syncSharedSession(
   // UUID, which keeps the context and bounds the JSONL.
   if (isReentrant && sharedSession && !sharedSession.needsRebuild && priorMessages.length < sharedSession.cursor) {
     debug(
-      `Case 1 synthetic: clean start for shorter context, preserving shared session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`,
+      `Case 1 SUBAGENT: clean start for shorter context, preserving shared session ${sharedSession.sessionId.slice(0, 8)}, cursor=${sharedSession.cursor}`,
     );
     debug(
       `syncResult: path=clean-start preserve-shared sessionId=${sharedSession.sessionId} cursor=${sharedSession.cursor}`,
@@ -247,7 +247,7 @@ export function syncSharedSession(
 
   // REBUILD path
   if (priorMessages.length === 0) {
-    debug(`Case 1: clean start, ${messages.length} total messages`);
+    debug(`Case 1 CLEAN_START: no prior messages, ${messages.length} total messages`);
     debug(`syncResult: path=clean-start`);
     return { sessionId: null };
   }
@@ -266,19 +266,19 @@ export function syncSharedSession(
     ...(previousSessionId ? { sessionId: previousSessionId } : {}),
     ...(modelId ? { model: modelId } : {}),
   });
-  convertAndImportMessages(session, priorMessages, customToolNameToSdk, carried);
+  convertAndImportMessages(session, priorMessages, piNameToWire, carried);
   session.save();
   // records, not messages: `messages` filters out attachment records.
   verifyWrittenSession(session.jsonlPath, session.sessionId, session.records.length, cwd);
   sharedSession = { sessionId: session.sessionId, cursor: priorMessages.length, cwd };
   if (previousSessionId === undefined) {
     debug(
-      `Case 2: first turn with ${priorMessages.length} prior messages → session ${session.sessionId.slice(0, 8)}, ${session.records.length} records`,
+      `Case 2 FIRST_BUILD: first turn with ${priorMessages.length} prior messages → session ${session.sessionId.slice(0, 8)}, ${session.records.length} records`,
     );
   } else {
     const missedCount = priorMessages.length - previousCursor;
     debug(
-      `Case 4: ${missedCount} missed messages, ${priorMessages.length} total → rewrote session ${session.sessionId.slice(0, 8)} (same id), ${session.records.length} records`,
+      `Case 4 REBUILD: ${missedCount} missed messages, ${priorMessages.length} total → rewrote session ${session.sessionId.slice(0, 8)} (same id), ${session.records.length} records`,
     );
   }
   debugSessionPaths(`${session.sessionId.slice(0, 8)}`, cwd, session.jsonlPath);

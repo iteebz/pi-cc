@@ -45,13 +45,13 @@ async function replay(name, { toolNames = ["read"] } = {}) {
   c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
   c.resetTurnState(model);
   // The map the provider path builds from the served tool list: SDK name → pi name.
-  const customToolNameToPi = new Map(toolNames.map((n) => [`mcp__custom-tools__${n}`, n]));
+  const wireNameToPi = new Map(toolNames.map((n) => [`mcp__custom-tools__${n}`, n]));
 
   const messages = fixture(name);
   async function* stream() {
     for (const m of messages) yield m;
   }
-  const { capturedSessionId } = await consumeQuery(stream(), customToolNameToPi, model, () => false, c);
+  const { capturedSessionId } = await consumeQuery(stream(), wireNameToPi, model, () => false, c);
   return { events, ctx: c, messages, capturedSessionId };
 }
 

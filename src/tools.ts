@@ -5,7 +5,7 @@
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources";
 import type { Context, Tool } from "@earendil-works/pi-ai";
 import { debug } from "./debug.js";
-import type { McpResult } from "./extract-tool-results.js";
+import type { ToolResult } from "./extract-tool-results.js";
 import { createToolServer } from "./mcp-server.js";
 import { type PromptStream, userMessage } from "./prompt-stream.js";
 import type { QueryContext } from "./query-state.js";
@@ -22,8 +22,8 @@ import { notify } from "./ui.js";
 // dispatched (real side effects) and, because the retry carries a fresh
 // tool_use id, left the handler for the retry with no result to release it:
 // pi's result arrived keyed to the dead id, and both sides deadlocked.
-export function piToolNameFor(name: string, customToolNameToPi: Map<string, string>): string | undefined {
-  return customToolNameToPi.get(name) ?? customToolNameToPi.get(name.toLowerCase());
+export function piToolNameFor(name: string, wireNameToPi: Map<string, string>): string | undefined {
+  return wireNameToPi.get(name) ?? wireNameToPi.get(name.toLowerCase());
 }
 
 // Renames for Claude Code SDK param names that differ from pi's native names.
@@ -53,25 +53,25 @@ export function mapToolArgs(toolName: string, args: Record<string, unknown> | un
 
 export function resolveMcpTools(context: Context): {
   mcpTools: Tool[];
-  customToolNameToSdk: Map<string, string>;
-  customToolNameToPi: Map<string, string>;
+  piNameToWire: Map<string, string>;
+  wireNameToPi: Map<string, string>;
 } {
   const mcpTools: Tool[] = [];
-  const customToolNameToSdk = new Map<string, string>();
-  const customToolNameToPi = new Map<string, string>();
+  const piNameToWire = new Map<string, string>();
+  const wireNameToPi = new Map<string, string>();
 
-  if (!context.tools) return { mcpTools, customToolNameToSdk, customToolNameToPi };
+  if (!context.tools) return { mcpTools, piNameToWire, wireNameToPi };
 
   for (const tool of context.tools) {
     const sdkName = `${MCP_TOOL_PREFIX}${tool.name}`;
     mcpTools.push(tool);
-    customToolNameToSdk.set(tool.name, sdkName);
-    customToolNameToSdk.set(tool.name.toLowerCase(), sdkName);
-    customToolNameToPi.set(sdkName, tool.name);
-    customToolNameToPi.set(sdkName.toLowerCase(), tool.name);
+    piNameToWire.set(tool.name, sdkName);
+    piNameToWire.set(tool.name.toLowerCase(), sdkName);
+    wireNameToPi.set(sdkName, tool.name);
+    wireNameToPi.set(sdkName.toLowerCase(), tool.name);
   }
 
-  return { mcpTools, customToolNameToSdk, customToolNameToPi };
+  return { mcpTools, piNameToWire, wireNameToPi };
 }
 
 // Creates an MCP server that bridges pi tools to the SDK. Each tool handler
@@ -103,7 +103,7 @@ export function buildMcpServers(
         return result;
       }
       debug(`mcp handler: ${tool.name} [${toolCallId}] → waiting`);
-      return new Promise<McpResult>((resolve) => {
+      return new Promise<ToolResult>((resolve) => {
         queryCtx.pendingToolCalls.set(toolCallId, { toolName: tool.name, resolve });
       });
     },
@@ -126,7 +126,7 @@ export function buildMcpServers(
  *  not SDK contract — tests/int-tool-message.mjs is the tripwire if they move. */
 export async function deliverToolResults(
   c: QueryContext,
-  results: McpResult[],
+  results: ToolResult[],
   steer: ContentBlockParam[] | null,
   contextLength: number,
 ): Promise<void> {

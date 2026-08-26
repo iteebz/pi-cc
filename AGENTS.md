@@ -63,8 +63,8 @@ working node_modules from the same package.json.
 ## Architecture
 
 `src/index.ts` is the entry: registers the provider and hooks pi's session
-lifecycle. `src/provider.ts` is the provider's `streamSimple` — query
-lifecycle, option assembly, abort wiring, session bookkeeping.
+lifecycle. `src/provider.ts` is the provider's `streamSimple` — dispatches to
+three paths: `handleToolResults`, `handleOrphanedResult`, `startFreshQuery`.
 
 ```
 debug → ui → query-state → turn → session → tools → stream → summary → provider → index
@@ -86,6 +86,46 @@ path resolution). Self-contained; nothing in it imports from the bridge.
   (200K). Mismatch desynchronizes pi's auto-compaction.
 - Prefix stability across turns keeps prompt caching alive. Haiku's 2048-token
   minimum means it caches nothing with our small system prompt.
+
+## State ownership
+
+Five module-level state slots. Every mutation is a named verb in its owning
+module.
+
+| slot | file | lifecycle | what |
+|------|------|-----------|------|
+| `sharedSession` | `session.ts` | session-scoped | CC session UUID + cursor; cleared on session_shutdown |
+| `_ctx` | `query-state.ts` | session-scoped | top-level QueryContext (singleton); reentrant queries get fresh instances |
+| `activeQueryContexts` | `query-state.ts` | query-scoped | set of all in-flight QueryContexts; empty between turns |
+| `providerSettings` | `provider.ts` | extension-scoped | config loaded once at registration |
+| `promptCaptures` | `provider.ts` | session-scoped | keyed by assembled system prompt; see prompt-capture.ts LIABILITY warning |
+| `ui` | `ui.ts` | session-scoped | pi's UI handle for notifications |
+
+## Prompt cache
+
+The ~25% cache miss rate is **CC/Anthropic baseline**, not bridge damage.
+Audit data: plain resume (no rebuild) misses 26%, rebuild misses 22%. The
+bridge's conversion is lossy (thinking blocks dropped, tool IDs sanitized),
+but rebuilds are not measurably worse than native resumes.
+
+The lever for better cache hits is **fewer rebuilds**, not better conversion.
+The code already optimizes for this: same UUID across rebuilds, cursor
+advanced past trailing assistant messages, REUSE path whenever possible.
+
+## Diagnostics (`diag/`)
+
+Forensic audit scripts from the July 2026 silent-loss investigation. Not part
+of the regular test suite. Run ad-hoc when debugging session or cache issues:
+
+- `audit-cache.mjs` — cache hit/miss rate from bridge debug log
+- `audit-transcripts.mjs` — tool-pairing integrity across session files
+- `audit-warnings.mjs` — WARNING lines from bridge debug log
+- `replay-write-path.mjs` — replay pi session through the write path
+- `capture-proxy.mjs` — capture actual API request bodies
+- `context-size.mjs` — measure served context window
+- `attachment-coverage.mjs` — attachment carry-across coverage
+
+See `diag/AUDIT.md` for baselines.
 
 ## Comments
 

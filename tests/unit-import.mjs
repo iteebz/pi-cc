@@ -8,8 +8,8 @@ import { repairToolPairing } from "../src/cc-session/index.js";
 import { convertPiMessages } from "../src/convert.js";
 
 /** Shorthand: convert pi messages and return just the anthropic messages. */
-function convert(messages, customToolNameToSdk = new Map()) {
-  return convertPiMessages(messages, customToolNameToSdk).anthropicMessages;
+function convert(messages, piNameToWire = new Map()) {
+  return convertPiMessages(messages, piNameToWire).anthropicMessages;
 }
 
 // --- Tests ---

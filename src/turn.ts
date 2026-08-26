@@ -7,7 +7,7 @@ import type { Base64ImageSource, ContentBlockParam } from "@anthropic-ai/sdk/res
 import type { Context, ImageContent, TextContent, UserMessage } from "@earendil-works/pi-ai";
 import { messageContentToText } from "./convert.js";
 import { debug } from "./debug.js";
-import { extractAllToolResults as _extractAllToolResults, type McpResult } from "./extract-tool-results.js";
+import { extractAllToolResults as _extractAllToolResults, type ToolResult } from "./extract-tool-results.js";
 
 /** Index of the first message of the current user turn — the trailing run of
  *  user messages that has not been written into the Claude Code session yet.
@@ -97,7 +97,7 @@ export function steerBlocks(messages: Context["messages"]): ContentBlockParam[] 
 // Pi doesn't pass tool results directly — it appends them to the context and calls
 // the provider again. Thin wrapper over extract-tool-results.js that adds per-turn
 // debug logging at the extraction boundary.
-export function extractAllToolResults(context: Context): McpResult[] {
+export function extractAllToolResults(context: Context): ToolResult[] {
   const { results, stopIdx } = _extractAllToolResults(
     context.messages as unknown as Array<{ role: string; [key: string]: unknown }>,
   );

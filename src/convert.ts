@@ -15,10 +15,10 @@ function sanitizeToolId(id: string, cache: Map<string, string>): string {
   return clean;
 }
 
-/** A pi tool name as the name a rebuilt transcript has to call it by.
+/** Map a pi tool name to its MCP wire name for a rebuilt transcript.
  *
  *  The query runs `tools: []`, so every tool Claude can call is a pi tool
- *  served over MCP, and its name is `mcp__custom-tools__<pi name>` by
+ *  served over MCP, and its wire name is `mcp__custom-tools__<pi name>` by
  *  construction (resolveMcpTools). The map is consulted first only because it
  *  carries the served tool's exact casing. A name it lacks is a tool pi ran
  *  that we do not serve now — excluded on purpose, or an extension since
@@ -26,18 +26,18 @@ function sanitizeToolId(id: string, cache: Map<string, string>): string {
  *  a builtin it cannot call is available and was already used. That is the
  *  prompt condition behind the phantom-call deadlock fixed in 122914dd, and
  *  the read direction refuses the same names for the same reason
- *  (piToolNameFor in index.ts).
+ *  (piToolNameFor in tools.ts).
  */
-function mapPiToolNameToSdk(name: string, customToolNameToSdk: Map<string, string>): string {
+function mapPiToolNameToWire(name: string, piNameToWire: Map<string, string>): string {
   if (!name) return "";
   const normalized = name.toLowerCase();
   // Pi history holds pi tool names. Our own SDK prefix can only reach here by
   // feeding already-converted names back through the conversion, and prefixing
   // twice invents a tool nobody serves.
   if (normalized.startsWith(MCP_TOOL_PREFIX)) {
-    throw new Error(`mapPiToolNameToSdk: "${name}" is already an SDK tool name — pi history holds pi tool names`);
+    throw new Error(`mapPiToolNameToWire: "${name}" is already an SDK tool name — pi history holds pi tool names`);
   }
-  return customToolNameToSdk.get(name) ?? customToolNameToSdk.get(normalized) ?? `${MCP_TOOL_PREFIX}${name}`;
+  return piNameToWire.get(name) ?? piNameToWire.get(normalized) ?? `${MCP_TOOL_PREFIX}${name}`;
 }
 
 export function messageContentToText(
@@ -94,7 +94,7 @@ export type DroppedContent = {
 /** Convert pi message array to Anthropic API format. */
 export function convertPiMessages(
   messages: PiMessage[],
-  customToolNameToSdk: Map<string, string>,
+  piNameToWire: Map<string, string>,
 ): { anthropicMessages: SessionMessage[]; sanitizedIds: Map<string, string>; dropped: DroppedContent } {
   const anthropicMessages = [];
   const sanitizedIds = new Map();
@@ -151,7 +151,7 @@ export function convertPiMessages(
             dropped.providers.add(msg.provider ?? "unknown");
           }
         } else if (block.type === "toolCall") {
-          const toolName = mapPiToolNameToSdk(block.name, customToolNameToSdk);
+          const toolName = mapPiToolNameToWire(block.name, piNameToWire);
           blocks.push({
             type: "tool_use",
             id: sanitizeToolId(block.id, sanitizedIds),
