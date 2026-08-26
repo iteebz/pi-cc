@@ -190,7 +190,7 @@ function verifyWrittenSession(
     notify(
       `Session file issue: ${msg}\n` +
         `cwd=${cwd} realpath=${safeRealpath(cwd)} CLAUDE_CONFIG_DIR=${process.env.CLAUDE_CONFIG_DIR ?? "(unset)"}\n` +
-        (DEBUG ? `Debug log: ${DEBUG_LOG_PATH}` : `Rerun with CLAUDE_BRIDGE_DEBUG=1 to capture a debug log.`),
+        (DEBUG ? `Debug log: ${DEBUG_LOG_PATH}` : `Rerun with CC_BRIDGE_DEBUG=1 to capture a debug log.`),
       "warning",
     );
     diagDump("session_verify_fail", {

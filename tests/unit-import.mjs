@@ -135,7 +135,7 @@ describe("thinking block filtering", () => {
     const msgs = [
       {
         role: "assistant",
-        provider: "claude-bridge",
+        provider: "cc",
         content: [
           { type: "thinking", thinking: "reasoning...", thinkingSignature: "sig123" },
           { type: "text", text: "answer" },
@@ -170,7 +170,7 @@ describe("thinking block filtering", () => {
     const msgs = [
       {
         role: "assistant",
-        provider: "claude-bridge",
+        provider: "cc",
         content: [
           { type: "thinking", thinking: "no sig" },
           { type: "text", text: "answer" },
@@ -575,7 +575,7 @@ describe("dropped-content accounting", () => {
         { role: "assistant", content: [] },
         {
           role: "assistant",
-          provider: "claude-bridge",
+          provider: "cc",
           content: [{ type: "thinking", thinking: "mine", thinkingSignature: "sig" }],
         },
       ],

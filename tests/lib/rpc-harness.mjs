@@ -82,7 +82,7 @@ export function createRpcHarness(opts) {
     pi = spawn("pi", spawnArgs, {
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, PATH: cleanPath, CLAUDE_BRIDGE_DEBUG: "1", CLAUDE_BRIDGE_DEBUG_PATH: DEBUG_LOG, ...env },
+      env: { ...process.env, PATH: cleanPath, CC_BRIDGE_DEBUG: "1", CC_BRIDGE_DEBUG_PATH: DEBUG_LOG, ...env },
     });
 
     // The killed subprocess can still flush buffered stdout/stderr after stop()

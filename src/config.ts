@@ -1,5 +1,5 @@
 // User-facing extension config. Loaded once at extension registration from
-// the global agent dir (getAgentDir(), e.g. ~/.pi/agent/claude-bridge.json)
+// the global agent dir (getAgentDir(), e.g. ~/.pi/agent/cc.json)
 // and the project Pi config directory, project overriding global. Missing or
 // unparseable files are ignored (error to console.error, empty object
 // returned) so the extension always starts.
@@ -76,7 +76,7 @@ function tryParseJson(path: string): Partial<Config> {
   try {
     return JSON.parse(readFileSync(path, "utf-8"));
   } catch (e) {
-    console.error(`claude-bridge: failed to parse ${path}: ${e}`);
+    console.error(`cc: failed to parse ${path}: ${e}`);
     return {};
   }
 }
@@ -106,11 +106,11 @@ export function hostedTools(provider: Config["provider"] = {}): string[] {
 }
 
 function globalConfigPath(): string {
-  return join(getAgentDir(), "claude-bridge.json");
+  return join(getAgentDir(), "cc.json");
 }
 
 export function loadConfig(cwd: string): Config {
   const global = tryParseJson(globalConfigPath());
-  const project = tryParseJson(join(cwd, CONFIG_DIR_NAME, "claude-bridge.json"));
+  const project = tryParseJson(join(cwd, CONFIG_DIR_NAME, "cc.json"));
   return { provider: { ...global.provider, ...project.provider } };
 }

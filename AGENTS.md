@@ -27,7 +27,7 @@ Ship: `just ship` (check + smoke → push → `pi update`) → live probe.
 
 After a fresh clone or repo rename, reload into pi:
 ```
-pi uninstall git:github.com/iteebz/pi-claude-bridge   # if old fork was installed
+pi uninstall git:github.com/iteebz/pi-cc   # if old fork was installed
 pi install git:github.com/iteebz/pi-cc-bridge
 ```
 

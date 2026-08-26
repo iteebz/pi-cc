@@ -19,7 +19,7 @@ import { basename } from "node:path";
 import { test } from "node:test";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
-const BRIDGE_MODEL = "claude-bridge/claude-haiku-4-5";
+const BRIDGE_MODEL = "cc/claude-haiku-4-5";
 
 function children(pid) {
   try {

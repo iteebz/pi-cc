@@ -42,7 +42,7 @@ const exotic = [
   { role: "user", content: "start" },
   {
     role: "assistant",
-    provider: "claude-bridge",
+    provider: "cc",
     content: [
       { type: "thinking", thinking: "planning", thinkingSignature: "sigA" },
       { type: "text", text: "reading two files" },
@@ -69,16 +69,16 @@ const exotic = [
     ],
   },
   { role: "toolResult", toolCallId: "tool call#2@x", content: "", isError: true },
-  { role: "assistant", provider: "claude-bridge", content: [{ type: "thinking", thinking: "unsigned" }] },
+  { role: "assistant", provider: "cc", content: [{ type: "thinking", thinking: "unsigned" }] },
   { role: "user", content: "" },
   { role: "user", content: [{ type: "image", data: "IMG", mimeType: "image/jpeg" }] },
   {
     role: "assistant",
-    provider: "claude-bridge",
+    provider: "cc",
     content: [{ type: "toolCall", id: "t9", name: "bash", arguments: { cmd: "ls" } }],
   },
   { role: "toolResult", toolCallId: "t9", content: [{ type: "document" }] },
-  { role: "assistant", provider: "claude-bridge", content: [{ type: "text", text: "done" }] },
+  { role: "assistant", provider: "cc", content: [{ type: "text", text: "done" }] },
 ];
 
 describe("conversion is deterministic", () => {

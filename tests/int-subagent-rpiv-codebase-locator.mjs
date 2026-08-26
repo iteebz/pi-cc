@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Reproduction/regression for rpiv-pi codebase-locator subagents hanging while
-// claude-bridge has a parent Claude Code query active.
+// cc has a parent Claude Code query active.
 //
 // This intentionally bypasses /skill:discover and invokes the same underlying
 // mechanism directly: @tintinweb/pi-subagents Agent tool + rpiv-pi's pinned
@@ -14,11 +14,11 @@ import { fileURLToPath } from "node:url";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
 const DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const BRIDGE_MODEL = "claude-bridge/claude-haiku-4-5";
+const BRIDGE_MODEL = "cc/claude-haiku-4-5";
 const TEST_TIMEOUT = 240_000;
 // Load pi-subagents straight from npm via pi's `-e npm:` source, pinned to a
 // version that passes modelRuntime to createAgentSession (pi 0.80.8 dropped the
-// modelRegistry option); older versions fail "No API key found for claude-bridge".
+// modelRegistry option); older versions fail "No API key found for cc".
 const SUBAGENTS_SOURCE = "npm:@tintinweb/pi-subagents@0.14.3";
 const RPIV_LOCATOR_FIXTURE = resolve(DIR, "tests/fixtures/rpiv-pi-v0.6.0-agents/codebase-locator.md");
 const REENTRANT_MARKER = /provider: active query user-only call treated as reentrant fresh query/g;

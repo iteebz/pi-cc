@@ -20,7 +20,7 @@ import { setUI } from "./ui.js";
 // subagent's empty state. Symbol.for is shared across module instances, so only
 // the first registration takes effect. clearSession resets it on shutdown so
 // /reload can register fresh.
-const ACTIVE_STREAM_SIMPLE_KEY = Symbol.for("claude-bridge:activeStreamSimple");
+const ACTIVE_STREAM_SIMPLE_KEY = Symbol.for("cc:activeStreamSimple");
 
 const MODELS = buildModels(getModels("anthropic"));
 
@@ -67,7 +67,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   pi.on("session_before_compact", async (event, ctx) => {
-    if (ctx.model?.baseUrl !== "claude-bridge") return undefined;
+    if (ctx.model?.baseUrl !== "cc") return undefined;
     debug(
       `session_before_compact: takeover reason=${event.reason} willRetry=${event.willRetry} ` +
         `isSplitTurn=${event.preparation.isSplitTurn} messages=${event.preparation.messagesToSummarize.length} ` +
@@ -110,7 +110,7 @@ export default function (pi: ExtensionAPI) {
   // nothing to resolve. Taken over like compaction: its own CC subprocess,
   // never touching the live session.
   pi.on("session_before_tree", async (event, ctx) => {
-    if (ctx.model?.baseUrl !== "claude-bridge") return undefined;
+    if (ctx.model?.baseUrl !== "cc") return undefined;
     const { entriesToSummarize, userWantsSummary, customInstructions, replaceInstructions } = event.preparation;
     if (!userWantsSummary || entriesToSummarize.length === 0) return undefined;
     debug(
@@ -137,15 +137,15 @@ export default function (pi: ExtensionAPI) {
   if (!g[ACTIVE_STREAM_SIMPLE_KEY]) {
     g[ACTIVE_STREAM_SIMPLE_KEY] = streamClaudeAgentSdk;
     pi.registerProvider(PROVIDER_ID, {
-      baseUrl: "claude-bridge",
+      baseUrl: "cc",
       apiKey: "not-used",
-      api: "claude-bridge",
+      api: "cc",
       models: MODELS,
       // Cast: pi-ai AssistantMessageEventStream diamond dep between pi-coding-agent and pi-agent-core
       streamSimple: streamClaudeAgentSdk as any,
     });
   } else {
-    // Subagent session: the parent's registration already exposes claude-bridge
+    // Subagent session: the parent's registration already exposes cc
     // models via the shared ModelRegistry, and calls route through the parent's
     // streamSimple as reentrant QueryContexts.
     debug(`provider: skipping re-registration, parent instance active (module=${moduleInstanceId})`);

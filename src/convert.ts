@@ -5,7 +5,7 @@ import type { Message as PiMessage } from "@earendil-works/pi-ai";
 import type { Message as SessionMessage } from "./cc-session/index.js";
 import { MCP_TOOL_PREFIX } from "./tool-names.js";
 
-export const PROVIDER_ID = "claude-bridge";
+export const PROVIDER_ID = "cc";
 
 function sanitizeToolId(id: string, cache: Map<string, string>): string {
   const existing = cache.get(id);

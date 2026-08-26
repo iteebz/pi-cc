@@ -19,7 +19,7 @@ import { readFileSync } from "node:fs";
 import { createRpcHarness } from "./lib/rpc-harness.mjs";
 
 const TIMEOUT = 120_000;
-const MODEL = "claude-bridge/claude-sonnet-4-6";
+const MODEL = "cc/claude-sonnet-4-6";
 
 const harness = createRpcHarness({
   name: "cache-abort",

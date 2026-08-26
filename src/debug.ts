@@ -1,22 +1,21 @@
 // Debug + diagnostic logging. Layer 0: imports nothing local, so every other
 // module can log without creating a cycle.
 //
-// CLAUDE_BRIDGE_DEBUG=1 enables debug logging to ~/.pi/agent/claude-bridge.log
+// CC_BRIDGE_DEBUG=1 enables debug logging to ~/.pi/agent/cc.log
 
 import { appendFileSync, mkdirSync, realpathSync, statSync } from "fs";
 import { homedir } from "os";
 import { dirname, join } from "path";
 
-export const DEBUG = process.env.CLAUDE_BRIDGE_DEBUG === "1";
-export const DEBUG_LOG_PATH =
-  process.env.CLAUDE_BRIDGE_DEBUG_PATH || join(homedir(), ".pi", "agent", "claude-bridge.log");
-const DIAG_LOG_PATH = join(homedir(), ".pi", "agent", "claude-bridge-diag.log");
+export const DEBUG = process.env.CC_BRIDGE_DEBUG === "1";
+export const DEBUG_LOG_PATH = process.env.CC_BRIDGE_DEBUG_PATH || join(homedir(), ".pi", "agent", "cc.log");
+const DIAG_LOG_PATH = join(homedir(), ".pi", "agent", "cc-diag.log");
 
-// CLAUDE_BRIDGE_RECORD_STREAM=<path> appends every SDK message consumeQuery sees,
+// CC_BRIDGE_RECORD_STREAM=<path> appends every SDK message consumeQuery sees,
 // one JSON object per line. Used by tests/lib/record-sdk-streams.mjs to capture
 // replay fixtures, so unit tests assert against message shapes Claude Code really
 // emitted rather than ones we imagined.
-export const RECORD_STREAM_PATH = process.env.CLAUDE_BRIDGE_RECORD_STREAM;
+export const RECORD_STREAM_PATH = process.env.CC_BRIDGE_RECORD_STREAM;
 
 // Ensure log directories exist when debug is enabled
 if (DEBUG) {
@@ -43,7 +42,7 @@ export function debug(...args: unknown[]) {
   appendFileSync(DEBUG_LOG_PATH, `[${ts}] [${moduleInstanceId}] ${msg}\n`);
 }
 
-// Per-query CLI debug capture. When CLAUDE_BRIDGE_DEBUG=1, ask the Claude Code
+// Per-query CLI debug capture. When CC_BRIDGE_DEBUG=1, ask the Claude Code
 // CLI subprocess to write its own debug log to a file we choose, and also
 // forward its stderr into our debug stream. Drops straight into the real SDK's
 // Options — see @anthropic-ai/claude-agent-sdk sdk.d.ts:1245 (debug, debugFile,

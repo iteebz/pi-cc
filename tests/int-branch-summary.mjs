@@ -18,7 +18,7 @@ const TEST_TIMEOUT = 120_000;
 
 const harness = createRpcHarness({
   name: "branch-summary",
-  args: ["-e", "./tests/fixtures/tree-nav-extension.ts", "--model", "claude-bridge/claude-haiku-4-5"],
+  args: ["-e", "./tests/fixtures/tree-nav-extension.ts", "--model", "cc/claude-haiku-4-5"],
   defaultTimeout: TEST_TIMEOUT,
 });
 

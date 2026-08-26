@@ -35,7 +35,7 @@ function piHistoryWithParallelCall() {
     { role: "user", content: "Read the three token files." },
     {
       role: "assistant",
-      provider: "claude-bridge",
+      provider: "cc",
       content: ids.map((id, i) => ({
         type: "toolCall",
         id,

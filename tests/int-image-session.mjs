@@ -20,8 +20,8 @@ const CRIMSON_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKklEQVR4nGO4I2JDU8QwasGoBaMWjFow" +
   "asGoBaMWjFowasGoBaMWDBULADahsD1ndvqVAAAAAElFTkSuQmCC";
 
-const ALT_PROVIDER = process.env.CLAUDE_BRIDGE_TESTING_ALT_PROVIDER;
-const ALT_MODEL = process.env.CLAUDE_BRIDGE_TESTING_ALT_MODEL;
+const ALT_PROVIDER = process.env.CC_BRIDGE_TESTING_ALT_PROVIDER;
+const ALT_MODEL = process.env.CC_BRIDGE_TESTING_ALT_MODEL;
 const TIMEOUT = 90_000;
 
 console.log("=== image-session-test.mjs ===");
@@ -81,8 +81,8 @@ try {
 
   // Switching providers forces the bridge to write pi's history — image included —
   // into a Claude Code session for CC to resume from.
-  console.log("Switching to claude-bridge/claude-haiku-4-5...");
-  await send({ type: "set_model", provider: "claude-bridge", modelId: "claude-haiku-4-5" }, TIMEOUT);
+  console.log("Switching to cc/claude-haiku-4-5...");
+  await send({ type: "set_model", provider: "cc", modelId: "claude-haiku-4-5" }, TIMEOUT);
 
   console.log("Turn 2: ask Claude about the image through the rebuilt session...");
   const answer = await promptAndWait(

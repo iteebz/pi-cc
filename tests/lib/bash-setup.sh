@@ -22,7 +22,7 @@ __clean_path() {
 
 # Setup standard test environment.
 # Usage: setup_test_env "test-name"
-# Sets: DIR, LOGDIR, LOGFILE (if specified), DEBUG_LOG, and exports CLAUDE_BRIDGE_DEBUG
+# Sets: DIR, LOGDIR, LOGFILE (if specified), DEBUG_LOG, and exports CC_BRIDGE_DEBUG
 setup_test_env() {
 	local name="$1"
 	local log_suffix="${2:-.log}"  # optional: suffix for logfile, or "none" for no logfile
@@ -31,9 +31,9 @@ setup_test_env() {
 	LOGDIR="$DIR/.test-output"
 	mkdir -p "$LOGDIR"
 
-	export CLAUDE_BRIDGE_DEBUG=1
+	export CC_BRIDGE_DEBUG=1
 	DEBUG_LOG="$LOGDIR/${name}-debug.log"
-	export CLAUDE_BRIDGE_DEBUG_PATH="$DEBUG_LOG"
+	export CC_BRIDGE_DEBUG_PATH="$DEBUG_LOG"
 
 	if [[ "$log_suffix" != "none" ]]; then
 		LOGFILE="$LOGDIR/${name}${log_suffix}"

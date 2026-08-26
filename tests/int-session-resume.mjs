@@ -5,8 +5,8 @@
 // each query, so "missed" messages are automatically included).
 //
 // Requires: pi CLI, Claude Code (for Agent SDK subprocess).
-// Requires: CLAUDE_BRIDGE_TESTING_ALT_PROVIDER (e.g. "minimax")
-// Requires: CLAUDE_BRIDGE_TESTING_ALT_MODEL (e.g. "MiniMax-M2.7-highspeed")
+// Requires: CC_BRIDGE_TESTING_ALT_PROVIDER (e.g. "minimax")
+// Requires: CC_BRIDGE_TESTING_ALT_MODEL (e.g. "MiniMax-M2.7-highspeed")
 
 console.log("=== session-resume-test.mjs ===");
 
@@ -15,11 +15,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRpcHarness, requireEnv } from "./lib/rpc-harness.mjs";
 
-const OTHER_PROVIDER = requireEnv("CLAUDE_BRIDGE_TESTING_ALT_PROVIDER");
-const OTHER_MODEL = requireEnv("CLAUDE_BRIDGE_TESTING_ALT_MODEL");
+const OTHER_PROVIDER = requireEnv("CC_BRIDGE_TESTING_ALT_PROVIDER");
+const OTHER_MODEL = requireEnv("CC_BRIDGE_TESTING_ALT_MODEL");
 
 const TIMEOUT = 180_000;
-const BRIDGE_MODEL = "claude-bridge/claude-haiku-4-5";
+const BRIDGE_MODEL = "cc/claude-haiku-4-5";
 
 // Random words to avoid Claude memorizing test values across runs
 const WORD_A = `alpha${Math.random().toString(36).slice(2, 6)}`;
