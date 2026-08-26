@@ -118,6 +118,7 @@ function convertAndImportMessages(
   // that never existed. Name the losses.
   const droppedParts = [
     dropped.thinking ? `${dropped.thinking} thinking (${[...dropped.providers].sort().join(", ")})` : "",
+    dropped.emptySignatures ? `${dropped.emptySignatures} empty-signature (own provider, no signature to replay)` : "",
     dropped.abortedTurns ? `${dropped.abortedTurns} aborted turn(s)` : "",
     ...[...dropped.other].map(([type, n]) => `${n} ${type}`),
   ].filter(Boolean);

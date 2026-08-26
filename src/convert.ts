@@ -85,6 +85,8 @@ function toolResultContent(
 export type DroppedContent = {
   thinking: number;
   abortedTurns: number;
+  /** Thinking blocks from our own provider that had no signature. */
+  emptySignatures: number;
   providers: Set<string>;
   other: Map<string, number>;
 };
@@ -99,7 +101,13 @@ export function convertPiMessages(
   // What conversion discarded. Nothing downstream can tell: a stripped thinking
   // block and a message that never carried one convert to the same thing, so
   // without this the loss is invisible in the log and in a captured request.
-  const dropped: DroppedContent = { thinking: 0, abortedTurns: 0, providers: new Set(), other: new Map() };
+  const dropped: DroppedContent = {
+    thinking: 0,
+    abortedTurns: 0,
+    emptySignatures: 0,
+    providers: new Set(),
+    other: new Map(),
+  };
   // The user message collecting this assistant turn's tool results, if one has
   // been emitted yet, and the index of the assistant message it belongs to. Both
   // are cleared at every assistant message — see the toolResult branch.
@@ -137,6 +145,9 @@ export function convertPiMessages(
             blocks.push({ type: "thinking", thinking: block.thinking ?? "", signature: sig });
           } else {
             dropped.thinking++;
+            if (msg.provider === PROVIDER_ID && !sig) {
+              dropped.emptySignatures++;
+            }
             dropped.providers.add(msg.provider ?? "unknown");
           }
         } else if (block.type === "toolCall") {
