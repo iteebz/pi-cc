@@ -35,12 +35,21 @@ describe("hostedTools", () => {
 });
 
 describe("claudeCodeSettings", () => {
-  it("disables auto-memory by default", () => {
-    assert.deepEqual(claudeCodeSettings(), { autoMemoryEnabled: false });
+  const base = {
+    autoMemoryEnabled: false,
+    includeCoAuthoredBy: false,
+    includeGitInstructions: false,
+    promptSuggestionEnabled: false,
+    feedbackSurveyRate: 0,
+    spinnerTipsEnabled: false,
+  };
+
+  it("disables auto-memory and all ancillary features by default", () => {
+    assert.deepEqual(claudeCodeSettings(), base);
   });
 
   it("allows auto-memory to be enabled", () => {
-    assert.deepEqual(claudeCodeSettings({ autoMemoryEnabled: true }), { autoMemoryEnabled: true });
+    assert.deepEqual(claudeCodeSettings({ autoMemoryEnabled: true }), { ...base, autoMemoryEnabled: true });
   });
 });
 

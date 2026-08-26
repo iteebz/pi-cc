@@ -36,6 +36,26 @@ requested (see `src/models.ts`). Bash commands get a 120s default timeout
 prompt. Steering works mid-turn: a message sent while a tool runs reaches CC at
 that tool boundary, not after the turn finishes.
 
+## Hardening — CC subprocess stripped to bare minimum
+
+Every `query()` call spawns a real CC binary. Two layers suppress all
+ancillary behavior:
+
+**env vars** (`CC_CHILD_ENV` in `src/config.ts`):
+`DISABLE_TELEMETRY=1`, `DISABLE_ERROR_REPORTING=1`, `DISABLE_AUTOUPDATER=1`,
+`DISABLE_INSTALLATION_CHECKS=1`, `DISABLE_UPGRADE_COMMAND=1`,
+`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
+`CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1`,
+`ENABLE_CLAUDEAI_MCP_SERVERS=0`, `DISABLE_AUTO_COMPACT=1`.
+
+**settings** (`claudeCodeSettings()` in `src/config.ts`):
+`autoMemoryEnabled: false`, `includeCoAuthoredBy: false`,
+`includeGitInstructions: false`, `promptSuggestionEnabled: false`,
+`feedbackSurveyRate: 0`, `spinnerTipsEnabled: false`.
+
+Also: CLAUDE.md files excluded (`claudeMdExcludes`), pi's context replaces
+CC's system prompt entirely.
+
 ## Configuration
 
 `~/.pi/agent/claude-bridge.json` (global) or `.pi/claude-bridge.json` (project,

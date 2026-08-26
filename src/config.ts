@@ -16,6 +16,7 @@ import { join } from "path";
 // nothing throws, and the damage shows up in the user's ~/.claude rather than
 // in a test.
 //
+// Session isolation:
 // - ENABLE_CLAUDEAI_MCP_SERVERS=0: keep the user's claude.ai-connected MCP servers
 //   out of a pi session, which serves its own tools. Cloud MCP is a separate code
 //   path from filesystem MCP and is NOT blocked by --strict-mcp-config or
@@ -24,9 +25,25 @@ import { join } from "path";
 //   diverge from pi's history, which is the source of truth for every rebuild,
 //   double-flush the prompt cache, and race CC's anti-thrashing guard (issue #8).
 //   Manual /compact inside CC still works (we never invoke it).
+//
+// Telemetry suppression — minimize outbound traffic from the CC subprocess:
+// - DISABLE_TELEMETRY=1: no usage telemetry
+// - DISABLE_ERROR_REPORTING=1: no crash/error reporting (sentry etc.)
+// - DISABLE_AUTOUPDATER=1: no update checks; pi manages its own deps
+// - DISABLE_INSTALLATION_CHECKS=1: no post-install phone-home
+// - DISABLE_UPGRADE_COMMAND=1: suppress the /upgrade slash command
+// - CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1: catch-all for ancillary requests
+// - CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1: no survey prompts
 export const CC_CHILD_ENV = {
   ENABLE_CLAUDEAI_MCP_SERVERS: "0",
   DISABLE_AUTO_COMPACT: "1",
+  DISABLE_TELEMETRY: "1",
+  DISABLE_ERROR_REPORTING: "1",
+  DISABLE_AUTOUPDATER: "1",
+  DISABLE_INSTALLATION_CHECKS: "1",
+  DISABLE_UPGRADE_COMMAND: "1",
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
+  CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY: "1",
 } as const;
 
 // Pi owns context files on the provider path, so Claude Code must not load its
@@ -64,8 +81,18 @@ function tryParseJson(path: string): Partial<Config> {
   }
 }
 
-export function claudeCodeSettings(provider: Config["provider"] = {}): { autoMemoryEnabled: boolean } {
-  return { autoMemoryEnabled: provider.autoMemoryEnabled ?? false };
+// Settings-layer suppression — complements the env-layer flags in CC_CHILD_ENV.
+// Some behaviors are only controllable here (co-authored-by, git instructions),
+// others are belt-and-suspenders with their env counterpart.
+export function claudeCodeSettings(provider: Config["provider"] = {}) {
+  return {
+    autoMemoryEnabled: provider.autoMemoryEnabled ?? false,
+    includeCoAuthoredBy: false,
+    includeGitInstructions: false,
+    promptSuggestionEnabled: false,
+    feedbackSurveyRate: 0,
+    spinnerTipsEnabled: false,
+  };
 }
 
 // The one place the hosted-web-tools policy lives. Claude Code's WebSearch/WebFetch
