@@ -9,7 +9,6 @@ import { dirname, join } from "path";
 
 export const DEBUG = process.env.CC_BRIDGE_DEBUG === "1";
 export const DEBUG_LOG_PATH = process.env.CC_BRIDGE_DEBUG_PATH || join(homedir(), ".pi", "agent", "cc.log");
-const DIAG_LOG_PATH = join(homedir(), ".pi", "agent", "cc-diag.log");
 
 // CC_BRIDGE_RECORD_STREAM=<path> appends every SDK message consumeQuery sees,
 // one JSON object per line. Used by tests/lib/record-sdk-streams.mjs to capture
@@ -17,11 +16,10 @@ const DIAG_LOG_PATH = join(homedir(), ".pi", "agent", "cc-diag.log");
 // emitted rather than ones we imagined.
 export const RECORD_STREAM_PATH = process.env.CC_BRIDGE_RECORD_STREAM;
 
-// Ensure log directories exist when debug is enabled
+// Ensure log directory exists when debug is enabled
 if (DEBUG) {
   try {
     mkdirSync(dirname(DEBUG_LOG_PATH), { recursive: true });
-    mkdirSync(dirname(DIAG_LOG_PATH), { recursive: true });
   } catch {
     // If directory creation fails, debug functions will throw on first use
   }
@@ -76,12 +74,11 @@ export function makeCliDebugOptions(tag: string): {
   };
 }
 
-/** Unconditional diagnostic dump — for "should never happen" paths */
+/** Log a "should never happen" event — always writes, even without DEBUG. */
 export function diagDump(label: string, data: Record<string, unknown>) {
   const ts = new Date().toISOString();
-  const entry = { ts, moduleInstanceId, label, ...data };
-  appendFileSync(DIAG_LOG_PATH, `${JSON.stringify(entry)}\n`);
-  debug(`DIAG: ${label} (see ${DIAG_LOG_PATH})`);
+  const msg = `[DIAG] ${label} ${JSON.stringify(data)}`;
+  appendFileSync(DEBUG_LOG_PATH, `[${ts}] [${moduleInstanceId}] ${msg}\n`);
 }
 
 export function safeRealpath(p: string): string {
