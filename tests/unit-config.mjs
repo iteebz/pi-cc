@@ -21,16 +21,16 @@ function withTempHome(fn) {
 
 describe("hostedTools", () => {
   // The web-tools policy is the one deliberate exception to "every tool flows
-  // through pi's TUI". Off by default because the hosted pair bills subscription
-  // quota; on it becomes the query's `tools` list verbatim (see index.ts).
-  it("serves no hosted tools by default", () => {
-    assert.deepEqual(hostedTools(), []);
-    assert.deepEqual(hostedTools({}), []);
-    assert.deepEqual(hostedTools({ webTools: false }), []);
+  // through pi's TUI". On by default so the harness has web reach; the pair
+  // becomes the query's `tools` list verbatim (see index.ts).
+  it("serves the hosted WebFetch/WebSearch pair by default", () => {
+    assert.deepEqual(hostedTools(), ["WebFetch", "WebSearch"]);
+    assert.deepEqual(hostedTools({}), ["WebFetch", "WebSearch"]);
+    assert.deepEqual(hostedTools({ webTools: true }), ["WebFetch", "WebSearch"]);
   });
 
-  it("serves the hosted WebFetch/WebSearch pair when enabled", () => {
-    assert.deepEqual(hostedTools({ webTools: true }), ["WebFetch", "WebSearch"]);
+  it("serves no hosted tools when explicitly disabled", () => {
+    assert.deepEqual(hostedTools({ webTools: false }), []);
   });
 });
 

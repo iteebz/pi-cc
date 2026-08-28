@@ -4,13 +4,13 @@
 merged over global). Reload with `/reload` after edits.
 
 ```json
-{ "provider": { "webTools": true } }
+{ "provider": { "webTools": false } }
 ```
 
 | key | default | what |
 |-----|---------|------|
 | `strictMcpConfig` | `true` | block MCP servers from `~/.claude.json` / `.mcp.json` |
-| `webTools` | `false` | enable hosted WebSearch/WebFetch (server-side, billed against subscription) |
+| `webTools` | `true` | hosted WebSearch/WebFetch (server-side, billed against subscription); set `false` to disable |
 | `autoMemoryEnabled` | `false` | CC's auto-memory system (MEMORY.md reads/writes) |
 | `pathToClaudeCodeExecutable` | auto | path to `claude` binary (useful for Nix etc.) |
 

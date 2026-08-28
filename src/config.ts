@@ -65,8 +65,9 @@ export interface Config {
     strictMcpConfig?: boolean;
     autoMemoryEnabled?: boolean;
     pathToClaudeCodeExecutable?: string;
-    /** Enable Claude Code's hosted WebSearch and WebFetch tools in provider sessions.
-     *  Server-side (Anthropic runs the search); bills against your subscription quota. */
+    /** Claude Code's hosted WebSearch and WebFetch tools in provider sessions.
+     *  On by default; set false to disable. Server-side (Anthropic runs the
+     *  search); bills against your subscription quota. */
     webTools?: boolean;
   };
 }
@@ -99,10 +100,10 @@ export function claudeCodeSettings(provider: Config["provider"] = {}) {
 // are the deliberate exception to "every tool flows through pi's TUI": pi ships no
 // native web search, and Anthropic's hosted pair is deep-research-optimized, so the
 // bridge is the sole web-capable provider in the harness. They run server-side and
-// bill against the subscription quota, hence opt-in. Off returns an empty list so
-// the provider query starts CC with no built-in tools at all.
+// bill against the subscription quota. On by default; `webTools: false` returns an
+// empty list so the provider query starts CC with no built-in tools at all.
 export function hostedTools(provider: Config["provider"] = {}): string[] {
-  return provider.webTools ? ["WebFetch", "WebSearch"] : [];
+  return provider.webTools === false ? [] : ["WebFetch", "WebSearch"];
 }
 
 function globalConfigPath(): string {
