@@ -173,6 +173,22 @@ function webToolMarker(name: string | undefined, input: unknown): string {
   return typeof arg === "string" && arg ? `[${label}: ${arg}]\n` : `[${label}]\n`;
 }
 
+/** One-line outcome for a hosted tool's sibling `*_tool_result` block, appended
+ *  under the marker. Search results are an array (rendered as a count); an error
+ *  result carries `error_code`. Fetch returns a document, not a countable list,
+ *  so its url in the marker is the whole signal — empty string, nothing rendered. */
+function webResultSummary(block: { content?: unknown } | undefined): string {
+  const content = block?.content;
+  if (content && typeof content === "object" && !Array.isArray(content) && "error_code" in content) {
+    return `  → error: ${(content as { error_code: unknown }).error_code}\n`;
+  }
+  if (Array.isArray(content)) {
+    const n = content.length;
+    return `  → ${n} result${n === 1 ? "" : "s"}\n`;
+  }
+  return "";
+}
+
 /** Text that arrived complete rather than as deltas. */
 function pushWholeText(c: QueryContext, text: string): void {
   ensureTurnStarted(c);
@@ -244,8 +260,11 @@ function processStreamEvent(
         partial: c.turnOutput,
       });
     } else if (typeof event.content_block?.type === "string" && event.content_block.type.endsWith("_tool_result")) {
-      // Stays inside CC's context; the model's answer cites it.
-      debug("processStreamEvent: hosted tool result block (not rendered)", event.content_block?.type);
+      // Stays inside CC's context; the model's answer cites it. Surface only a
+      // one-line outcome under the marker.
+      const summary = webResultSummary(event.content_block);
+      if (summary) pushWholeText(c, summary);
+      else debug("processStreamEvent: hosted tool result block (not rendered)", event.content_block?.type);
     } else {
       debug("processStreamEvent: unhandled content_block_start type", event.content_block?.type);
     }
@@ -402,7 +421,9 @@ function processAssistantMessage(
       pushWholeText(c, webToolMarker(block.name, block.input));
     } else if (typeof block.type === "string" && block.type.endsWith("_tool_result")) {
       // Sibling hosted result: stays in CC's context, the model's text cites it.
-      debug("processAssistantMessage: hosted tool result block (not rendered)", block.type);
+      const summary = webResultSummary(block);
+      if (summary) pushWholeText(c, summary);
+      else debug("processAssistantMessage: hosted tool result block (not rendered)", block.type);
     } else {
       debug("processAssistantMessage: unhandled block type", block.type);
     }

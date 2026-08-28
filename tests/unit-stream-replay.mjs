@@ -204,7 +204,14 @@ describe("replaying a hosted web-search turn", () => {
           role: "assistant",
           content: [
             { type: "server_tool_use", id: "srvtoolu_y", name: "web_search", input: { query: "distil pricing" } },
-            { type: "web_search_tool_result", tool_use_id: "srvtoolu_y", content: [] },
+            {
+              type: "web_search_tool_result",
+              tool_use_id: "srvtoolu_y",
+              content: [
+                { title: "Pricing", url: "https://distil.cx/pricing" },
+                { title: "Plans", url: "https://distil.cx/plans" },
+              ],
+            },
             { type: "text", text: "Here is what I found." },
           ],
           usage: { input_tokens: 1, output_tokens: 1 },
@@ -228,6 +235,7 @@ describe("replaying a hosted web-search turn", () => {
       .map((b) => b.text)
       .join("");
     assert.match(text, /\[web search: distil pricing\]/, "the fallback path renders the hosted-tool marker");
+    assert.match(text, /→ 2 results/, "the fallback path summarizes the result count");
   });
 });
 
