@@ -131,7 +131,7 @@ describe("replaying a hosted web-search turn", () => {
 
   it("names the hosted tool in the marker when it is not web_search", async () => {
     // Inline rather than a second fixture: only the content_block name differs, and
-    // the marker's `: name` suffix is the whole behavior under test.
+    // the marker's tool label is the whole behavior under test.
     const events = [];
     const c = new QueryContext();
     c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
@@ -186,7 +186,48 @@ describe("replaying a hosted web-search turn", () => {
       .filter((b) => b.type === "text")
       .map((b) => b.text)
       .join("");
-    assert.match(text, /\[web search: web_fetch\]/, "a non-web_search hosted tool names itself in the marker");
+    assert.match(text, /\[web fetch\]/, "a non-web_search hosted tool names itself in the marker");
+  });
+
+  it("renders the marker from the completed message when no stream events arrive", async () => {
+    // The regression: hosted-tool blocks can arrive only in the final assistant
+    // message (no partial deltas). The completed-message fallback used to drop
+    // server_tool_use as an unhandled block, so the TUI showed nothing.
+    const events = [];
+    const c = new QueryContext();
+    c.currentPiStream = { push: (e) => events.push(e), end: () => events.push({ type: "end" }) };
+    c.resetTurnState(model);
+    const frames = [
+      {
+        type: "assistant",
+        message: {
+          role: "assistant",
+          content: [
+            { type: "server_tool_use", id: "srvtoolu_y", name: "web_search", input: { query: "distil pricing" } },
+            { type: "web_search_tool_result", tool_use_id: "srvtoolu_y", content: [] },
+            { type: "text", text: "Here is what I found." },
+          ],
+          usage: { input_tokens: 1, output_tokens: 1 },
+        },
+        session_id: "00000000-0000-4000-8000-000000000002",
+      },
+      {
+        type: "result",
+        subtype: "success",
+        result: "Here is what I found.",
+        session_id: "00000000-0000-4000-8000-000000000002",
+      },
+    ];
+    async function* stream() {
+      for (const m of frames) yield m;
+    }
+    await consumeQuery(stream(), new Map(), model, () => false, c);
+
+    const text = c.turnOutput.content
+      .filter((b) => b.type === "text")
+      .map((b) => b.text)
+      .join("");
+    assert.match(text, /\[web search: distil pricing\]/, "the fallback path renders the hosted-tool marker");
   });
 });
 
