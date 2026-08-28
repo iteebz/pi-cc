@@ -2,7 +2,13 @@
 // session lifecycle. The provider's query execution lives in provider.ts.
 
 import { getModels } from "@earendil-works/pi-ai/compat";
-import { compact, type ExtensionAPI, generateBranchSummary } from "@earendil-works/pi-coding-agent";
+import {
+  type BuildSystemPromptOptions,
+  compact,
+  type ExtensionAPI,
+  type ExtensionContext,
+  generateBranchSummary,
+} from "@earendil-works/pi-coding-agent";
 import { loadConfig } from "./config.js";
 import { PROVIDER_ID } from "./convert.js";
 import { debug, errorMessage, moduleInstanceId } from "./debug.js";
@@ -12,6 +18,14 @@ import { reportLeaks } from "./query-state.js";
 import { clearSharedSession, markNeedsRebuild } from "./session.js";
 import { branchSummaryOutcome, isolatedStreamFn, reinjectPriorCompactionFileOps } from "./summary.js";
 import { setUI } from "./ui.js";
+
+// Pi binds getSystemPromptOptions onto every extension context at runtime, but
+// its published types declare it only on command contexts. Narrow here rather
+// than casting at each call site.
+function systemPromptOptions(ctx: ExtensionContext): BuildSystemPromptOptions | undefined {
+  const get = (ctx as { getSystemPromptOptions?: () => BuildSystemPromptOptions }).getSystemPromptOptions;
+  return typeof get === "function" ? get.call(ctx) : undefined;
+}
 
 // Guards against re-registration across module reloads. Extensions like
 // pi-subagents load this module again in the subagent; without the guard, that
@@ -49,10 +63,37 @@ export default function (pi: ExtensionAPI) {
     }
   });
 
+  // Set by before_agent_start, consumed by agent_start. Only a turn that never
+  // fired before_agent_start needs the fallback capture below.
+  let capturedThisTurn = false;
+
   pi.on("before_agent_start", (event) => {
     const options = event.systemPromptOptions;
     const hasRead = !options?.selectedTools || options.selectedTools.includes("read");
+    capturedThisTurn = true;
     recordPromptCapture(event.systemPrompt, {
+      custom: options?.customPrompt,
+      append: options?.appendSystemPrompt,
+      contextFiles: options?.contextFiles ?? [],
+      skills: hasRead ? (options?.skills ?? []) : [],
+    });
+  });
+
+  // Pi emits before_agent_start only from the user-prompt path. A turn an
+  // extension starts with sendMessage(triggerTurn) goes straight to the agent
+  // loop, so nothing captured its prompt and the turn dies claiming the prompt
+  // is unknown. That path also never offers extensions a chance to override the
+  // system prompt, so the live one is pi's own assembly and safe to record.
+  // Recording unconditionally here would be wrong: it would key a prompt some
+  // extension rebuilt to base options and silently drop the user's real
+  // instructions — exactly what the capture error exists to prevent.
+  pi.on("agent_start", (_event, ctx) => {
+    const handled = capturedThisTurn;
+    capturedThisTurn = false;
+    if (handled) return;
+    const options = systemPromptOptions(ctx);
+    const hasRead = !options?.selectedTools || options.selectedTools.includes("read");
+    recordPromptCapture(ctx.getSystemPrompt(), {
       custom: options?.customPrompt,
       append: options?.appendSystemPrompt,
       contextFiles: options?.contextFiles ?? [],
