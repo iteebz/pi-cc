@@ -6,6 +6,7 @@
 
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { existsSync, readFileSync } from "fs";
+import { homedir } from "os";
 import { join } from "path";
 
 // Applied to every Claude Code subprocess the bridge spawns — the provider
@@ -34,6 +35,21 @@ import { join } from "path";
 // - DISABLE_UPGRADE_COMMAND=1: suppress the /upgrade slash command
 // - CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1: catch-all for ancillary requests
 // - CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY=1: no survey prompts
+
+const BROKER_SOCKET = join(homedir(), ".distil", "broker.sock");
+
+// When the auth broker is running (LaunchAgent, GUI session, Keychain access),
+// route CC's API traffic through it. CC's `claude ssh` contract: the socket
+// proxies to api.anthropic.com with real OAuth credentials; the placeholder
+// token triggers the oauth-2025 beta header. See docs/ideas/pi-cc-bare-mode.md.
+const BROKER_ENV: Record<string, string> = existsSync(BROKER_SOCKET)
+  ? {
+      ANTHROPIC_UNIX_SOCKET: BROKER_SOCKET,
+      ANTHROPIC_BASE_URL: "http://localhost",
+      CLAUDE_CODE_OAUTH_TOKEN: "broker-managed",
+    }
+  : {};
+
 export const CC_CHILD_ENV = {
   ENABLE_CLAUDEAI_MCP_SERVERS: "0",
   DISABLE_AUTO_COMPACT: "1",
@@ -44,6 +60,7 @@ export const CC_CHILD_ENV = {
   DISABLE_UPGRADE_COMMAND: "1",
   CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1",
   CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY: "1",
+  ...BROKER_ENV,
 } as const;
 
 // Pi owns context files on the provider path, so Claude Code must not load its
