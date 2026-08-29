@@ -87,17 +87,29 @@ export default function (pi: ExtensionAPI) {
   // Recording unconditionally here would be wrong: it would key a prompt some
   // extension rebuilt to base options and silently drop the user's real
   // instructions — exactly what the capture error exists to prevent.
+  //
+  // Pi binds getSystemPromptOptions onto command contexts only, so this path
+  // often sees none. An options-less capture projects to nothing and the query
+  // silently falls back to Claude Code's preset — the agent then answers as
+  // Claude Code with no SYSTEM.md, AGENTS.md or skills. Forwarding the live
+  // assembly as the custom prompt loses the structural split but keeps every
+  // instruction pi loaded.
   pi.on("agent_start", (_event, ctx) => {
     const handled = capturedThisTurn;
     capturedThisTurn = false;
     if (handled) return;
+    const assembled = ctx.getSystemPrompt();
     const options = systemPromptOptions(ctx);
-    const hasRead = !options?.selectedTools || options.selectedTools.includes("read");
-    recordPromptCapture(ctx.getSystemPrompt(), {
-      custom: options?.customPrompt,
-      append: options?.appendSystemPrompt,
-      contextFiles: options?.contextFiles ?? [],
-      skills: hasRead ? (options?.skills ?? []) : [],
+    if (!options) {
+      recordPromptCapture(assembled, { custom: assembled, contextFiles: [], skills: [] });
+      return;
+    }
+    const hasRead = !options.selectedTools || options.selectedTools.includes("read");
+    recordPromptCapture(assembled, {
+      custom: options.customPrompt,
+      append: options.appendSystemPrompt,
+      contextFiles: options.contextFiles ?? [],
+      skills: hasRead ? (options.skills ?? []) : [],
     });
   });
 
