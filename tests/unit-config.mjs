@@ -32,6 +32,15 @@ describe("hostedTools", () => {
   it("serves no hosted tools when explicitly disabled", () => {
     assert.deepEqual(hostedTools({ webTools: false }), []);
   });
+
+  it("serves exactly the listed tools, so search survives without fetch", () => {
+    assert.deepEqual(hostedTools({ webTools: ["WebSearch"] }), ["WebSearch"]);
+    assert.deepEqual(hostedTools({ webTools: [] }), []);
+  });
+
+  it("drops unknown entries rather than passing them to the provider", () => {
+    assert.deepEqual(hostedTools({ webTools: ["WebSearch", "Bash"] }), ["WebSearch"]);
+  });
 });
 
 describe("claudeCodeSettings", () => {

@@ -67,9 +67,10 @@ export interface Config {
     autoMemoryEnabled?: boolean;
     pathToClaudeCodeExecutable?: string;
     /** Claude Code's hosted WebSearch and WebFetch tools in provider sessions.
-     *  On by default; set false to disable. Server-side (Anthropic runs the
-     *  search); bills against your subscription quota. */
-    webTools?: boolean;
+     *  On by default; false disables both; an explicit list enables exactly
+     *  those. Server-side (Anthropic runs the search); bills against your
+     *  subscription quota. */
+    webTools?: boolean | string[];
   };
 }
 
@@ -103,8 +104,20 @@ export function claudeCodeSettings(provider: Config["provider"] = {}) {
 // bridge is the sole web-capable provider in the harness. They run server-side and
 // bill against the subscription quota. On by default; `webTools: false` returns an
 // empty list so the provider query starts CC with no built-in tools at all.
+//
+// The pair is separable because the two tools have different context costs:
+// WebSearch returns snippets, WebFetch returns whole pages that stay in the
+// agent's prefix for the rest of the session. `webTools: ["WebSearch"]` keeps
+// lookup and pushes deep research into a subagent.
+export const HOSTED_WEB_TOOLS = ["WebFetch", "WebSearch"];
+
 export function hostedTools(provider: Config["provider"] = {}): string[] {
-  return provider.webTools === false ? [] : ["WebFetch", "WebSearch"];
+  const setting = provider.webTools;
+  if (setting === false) return [];
+  if (!Array.isArray(setting)) return [...HOSTED_WEB_TOOLS];
+  const unknown = setting.filter((t) => !HOSTED_WEB_TOOLS.includes(t));
+  if (unknown.length) console.error(`cc: unknown webTools entries ignored: ${unknown.join(", ")}`);
+  return setting.filter((t) => HOSTED_WEB_TOOLS.includes(t));
 }
 
 function globalConfigPath(): string {

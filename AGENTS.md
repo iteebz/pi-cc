@@ -19,7 +19,8 @@ Our fork, maintained purely for the distil builder harness. Upstream
 A pi extension registering Claude Code as a model provider. The Agent SDK
 spawns the real `claude` binary as a subprocess — this is not a cloud API, it's
 a local process wrapper. Every tool call flows through pi's TUI over MCP; the
-one exception is the hosted web tools (`webTools`, on by default; `false` disables).
+one exception is the hosted web tools (`webTools`, on by default; `false` disables
+both, a list enables exactly those).
 
 Install the canonical checkout directly: `pi install ~/dev/fork/pi-cc`.
 A `git:github.com/...` source creates a separate managed clone and is not used.
@@ -90,7 +91,7 @@ path resolution). Self-contained; nothing in it imports from the bridge.
 ## Invariants
 
 - Provider query starts CC with the hosted pair by default (`tools: []` when
-  `webTools: false`). Every other tool arrives over MCP. Any other tool_use is a
+  `webTools: false`, or a subset via a list). Every other tool arrives over MCP. Any other tool_use is a
   hallucinated builtin — must not reach pi.
 - Model `contextWindow` in `src/models.ts` must match what the bridge serves
   (200K). Mismatch desynchronizes pi's auto-compaction.
