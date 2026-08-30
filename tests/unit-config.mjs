@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { CONFIG_DIR_NAME, getAgentDir } from "@earendil-works/pi-coding-agent";
-import { claudeCodeSettings, hostedTools, loadConfig } from "../src/config.js";
+import { claudeCodeSettings, loadConfig } from "../src/config.js";
 
 function withTempHome(fn) {
   const oldHome = process.env.HOME;
@@ -18,30 +18,6 @@ function withTempHome(fn) {
     rmSync(home, { recursive: true, force: true });
   }
 }
-
-describe("hostedTools", () => {
-  // The web-tools policy is the one deliberate exception to "every tool flows
-  // through pi's TUI". On by default so the harness has web reach; the pair
-  // becomes the query's `tools` list verbatim (see index.ts).
-  it("serves the hosted WebFetch/WebSearch pair by default", () => {
-    assert.deepEqual(hostedTools(), ["WebFetch", "WebSearch"]);
-    assert.deepEqual(hostedTools({}), ["WebFetch", "WebSearch"]);
-    assert.deepEqual(hostedTools({ webTools: true }), ["WebFetch", "WebSearch"]);
-  });
-
-  it("serves no hosted tools when explicitly disabled", () => {
-    assert.deepEqual(hostedTools({ webTools: false }), []);
-  });
-
-  it("serves exactly the listed tools, so search survives without fetch", () => {
-    assert.deepEqual(hostedTools({ webTools: ["WebSearch"] }), ["WebSearch"]);
-    assert.deepEqual(hostedTools({ webTools: [] }), []);
-  });
-
-  it("drops unknown entries rather than passing them to the provider", () => {
-    assert.deepEqual(hostedTools({ webTools: ["WebSearch", "Bash"] }), ["WebSearch"]);
-  });
-});
 
 describe("claudeCodeSettings", () => {
   const base = {

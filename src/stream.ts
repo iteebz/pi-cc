@@ -160,35 +160,6 @@ function endStreamForToolUse(c: QueryContext): void {
   c.currentPiStream = null;
 }
 
-/** Marker for a hosted tool (WebSearch/WebFetch) that Anthropic ran server-side.
- *  No roundtrip through pi is possible, so both stream paths render this text in
- *  place of a tool card. Includes the query/url when the input has been parsed. */
-function webToolMarker(name: string | undefined, input: unknown): string {
-  const tool = name ?? "web_search";
-  const label = tool === "web_fetch" ? "web fetch" : tool === "web_search" ? "web search" : tool;
-  const arg =
-    input && typeof input === "object"
-      ? ((input as Record<string, unknown>).query ?? (input as Record<string, unknown>).url)
-      : undefined;
-  return typeof arg === "string" && arg ? `[${label}: ${arg}]\n` : `[${label}]\n`;
-}
-
-/** One-line outcome for a hosted tool's sibling `*_tool_result` block, appended
- *  under the marker. Search results are an array (rendered as a count); an error
- *  result carries `error_code`. Fetch returns a document, not a countable list,
- *  so its url in the marker is the whole signal — empty string, nothing rendered. */
-function webResultSummary(block: { content?: unknown } | undefined): string {
-  const content = block?.content;
-  if (content && typeof content === "object" && !Array.isArray(content) && "error_code" in content) {
-    return `  → error: ${(content as { error_code: unknown }).error_code}\n`;
-  }
-  if (Array.isArray(content)) {
-    const n = content.length;
-    return `  → ${n} result${n === 1 ? "" : "s"}\n`;
-  }
-  return "";
-}
-
 /** Text that arrived complete rather than as deltas. */
 function pushWholeText(c: QueryContext, text: string): void {
   ensureTurnStarted(c);
@@ -246,25 +217,6 @@ function processStreamEvent(
         index: event.index,
       });
       c.currentPiStream!.push({ type: "toolcall_start", contentIndex: c.turnBlocks.length - 1, partial: c.turnOutput });
-    } else if (event.content_block?.type === "server_tool_use") {
-      // Hosted tool: Anthropic runs it and streams a sibling *_tool_result
-      // block. No roundtrip through pi is possible, so render a marker.
-      c.turnBlocks.push({ type: "text", text: "", index: event.index });
-      c.currentPiStream!.push({ type: "text_start", contentIndex: c.turnBlocks.length - 1, partial: c.turnOutput });
-      const marker = webToolMarker(event.content_block.name, event.content_block.input);
-      c.turnBlocks[c.turnBlocks.length - 1].text = marker;
-      c.currentPiStream!.push({
-        type: "text_delta",
-        contentIndex: c.turnBlocks.length - 1,
-        delta: marker,
-        partial: c.turnOutput,
-      });
-    } else if (typeof event.content_block?.type === "string" && event.content_block.type.endsWith("_tool_result")) {
-      // Stays inside CC's context; the model's answer cites it. Surface only a
-      // one-line outcome under the marker.
-      const summary = webResultSummary(event.content_block);
-      if (summary) pushWholeText(c, summary);
-      else debug("processStreamEvent: hosted tool result block (not rendered)", event.content_block?.type);
     } else {
       debug("processStreamEvent: unhandled content_block_start type", event.content_block?.type);
     }
@@ -300,8 +252,6 @@ function processStreamEvent(
         delta: event.delta.partial_json,
         partial: c.turnOutput,
       });
-    } else if (event.delta?.type === "input_json_delta" && block.type === "server_tool_use") {
-      // Server-side execution: nothing to render per-delta.
     } else if (event.delta?.type === "signature_delta" && block.type === "thinking") {
       block.thinkingSignature = (block.thinkingSignature ?? "") + event.delta.signature;
     } else {
@@ -414,16 +364,6 @@ function processAssistantMessage(
         toolCall: toolBlock as any,
         partial: c.turnOutput,
       });
-    } else if (block.type === "server_tool_use") {
-      // Hosted tool ran server-side; the streaming path never saw a
-      // content_block_start for it (the blocks arrive only in this completed
-      // message). Render the same marker here or nothing shows at all.
-      pushWholeText(c, webToolMarker(block.name, block.input));
-    } else if (typeof block.type === "string" && block.type.endsWith("_tool_result")) {
-      // Sibling hosted result: stays in CC's context, the model's text cites it.
-      const summary = webResultSummary(block);
-      if (summary) pushWholeText(c, summary);
-      else debug("processAssistantMessage: hosted tool result block (not rendered)", block.type);
     } else {
       debug("processAssistantMessage: unhandled block type", block.type);
     }

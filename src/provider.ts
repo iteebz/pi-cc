@@ -7,7 +7,7 @@
 
 import { type EffortLevel, query } from "@anthropic-ai/claude-agent-sdk";
 import type { AssistantMessageEventStream, Context, Model, SimpleStreamOptions } from "@earendil-works/pi-ai";
-import { CC_CHILD_ENV, CLAUDE_MD_EXCLUDES, type Config, claudeCodeSettings, hostedTools } from "./config.js";
+import { CC_CHILD_ENV, CLAUDE_MD_EXCLUDES, type Config, claudeCodeSettings } from "./config.js";
 import { debug, diagDump, errorMessage, makeCliDebugOptions } from "./debug.js";
 import { PromptCaptures, projectPromptCapture } from "./prompt-capture.js";
 import { makePromptStream, userMessage } from "./prompt-stream.js";
@@ -306,9 +306,10 @@ function buildQueryOptions(
   return {
     cwd,
     env: { ...process.env, ...CC_CHILD_ENV },
-    // hostedTools() owns the web-tools policy: the hosted pair when webTools is
-    // on, otherwise []. Every other tool CC can call arrives over MCP.
-    tools: hostedTools(providerSettings),
+    // No built-in tools. Every tool CC can call arrives over MCP, from pi.
+    // Web reach is distil's `distil web search|fetch`, not a provider builtin —
+    // see docs/systems/agent-web.md in the distil repo.
+    tools: [],
     permissionMode: "bypassPermissions",
     includePartialMessages: true,
     settings: { ...claudeCodeSettings(providerSettings), claudeMdExcludes: CLAUDE_MD_EXCLUDES },
