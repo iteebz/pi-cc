@@ -21,14 +21,14 @@ spawns the real `claude` binary as a subprocess — this is not a cloud API, it'
 a local process wrapper. Every tool call flows through pi's TUI over MCP —
 no exceptions. The provider query starts CC with `tools: []`.
 
-Install the canonical checkout directly: `pi install ~/dev/fork/pi-cc`.
+Install the canonical checkout directly: `pi install ~/dev/pi-cc`.
 A `git:github.com/...` source creates a separate managed clone and is not used.
 Ship: `just ship` (check + smoke → push) → fresh-process live probe.
 
 After a fresh clone or repo rename, reload into pi:
 ```
 pi uninstall git:github.com/iteebz/pi-cc   # if a managed clone was installed
-pi install ~/dev/fork/pi-cc
+pi install ~/dev/pi-cc
 ```
 
 Tracked hooks enforce scoped conventional commits and recheck pushed history.
